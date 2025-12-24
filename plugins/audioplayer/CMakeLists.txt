@@ -48,7 +48,8 @@ endif()
 
 # Allow undefined symbols - they'll be resolved when PChat loads the plugin
 if(WIN32)
-    # Windows DLLs don't need special flags for plugin symbols
+    # Use .def file to export plugin symbols on Windows
+    target_sources(audioplayer PRIVATE audioplayer.def)
 elseif(APPLE)
     target_link_options(audioplayer PRIVATE 
         "-Wl,-undefined,dynamic_lookup"
