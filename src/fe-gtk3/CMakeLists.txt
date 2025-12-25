@@ -247,10 +247,10 @@ if(APPLE)
     
     # Bundle with proper code signing (requires CODESIGN_IDENTITY to be set)
     add_custom_target(bundle-signed
-        COMMAND ${CMAKE_SOURCE_DIR}/osx/create-bundle.sh ${PROJECT_VERSION} ${CMAKE_BINARY_DIR} "$ENV{CODESIGN_IDENTITY}"
+        COMMAND /bin/sh -c "${CMAKE_SOURCE_DIR}/osx/create-bundle.sh ${PROJECT_VERSION} ${CMAKE_BINARY_DIR} \"$ENV{CODESIGN_IDENTITY}\""
         DEPENDS pchat
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Creating macOS application bundle (signed with $$CODESIGN_IDENTITY)..."
+        COMMENT "Creating macOS application bundle (signed)..."
     )
     
     # Create DMG (requires bundle to exist)
