@@ -186,6 +186,14 @@ target_link_libraries(pchat PRIVATE
     ${GLIB_LIBRARIES}
 )
 
+# macOS frameworks for native notifications
+if(APPLE)
+    target_link_libraries(pchat PRIVATE
+        "-framework Foundation"
+        "-framework Cocoa"
+    )
+endif()
+
 # Export symbols for plugins on Linux/Unix
 if(UNIX AND NOT APPLE)
     target_link_options(pchat PRIVATE "-Wl,--export-dynamic")

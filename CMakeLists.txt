@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.12)
-project(pchat VERSION 2.0.0 LANGUAGES C)
+
+# Enable Objective-C on macOS for notification support
+if(APPLE)
+    project(pchat VERSION 2.0.0 LANGUAGES C OBJC)
+else()
+    project(pchat VERSION 2.0.0 LANGUAGES C)
+endif()
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
