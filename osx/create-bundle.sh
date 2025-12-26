@@ -233,7 +233,14 @@ echo "Signing bundle with identity: ${SIGN_IDENTITY}"
 echo "  Signing libraries..."
 for lib in "${LIB_DIR}"/*.dylib; do
     if [ -f "$lib" ]; then
-        codesign --force --sign "${SIGN_IDENTITY}" "$lib" 2>&1 | grep -v "replacing existing signature" || true
+        # Sign with timestamp and hardened runtime for distribution builds
+        if [ "$SIGN_IDENTITY" != "-" ]; then
+            codesign --force --sign "${SIGN_IDENTITY}" --timestamp --options runtime "$lib" 2>&1 | grep -v "replacing existing signature" || {
+                echo "    Warning: Failed to sign $(basename "$lib") - continuing anyway"
+            }
+        else
+            codesign --force --sign - "$lib" 2>&1 | grep -v "replacing existing signature" || true
+        fi
     fi
 done
 
@@ -242,17 +249,34 @@ if [ -d "${LIB_DIR}/gdk-pixbuf-2.0" ]; then
     echo "  Signing GDK pixbuf loaders..."
     for loader in "${LIB_DIR}"/gdk-pixbuf-2.0/*/*.so; do
         if [ -f "$loader" ]; then
-            codesign --force --sign "${SIGN_IDENTITY}" "$loader" 2>&1 | grep -v "replacing existing signature" || true
+            if [ "$SIGN_IDENTITY" != "-" ]; then
+                codesign --force --sign "${SIGN_IDENTITY}" --timestamp --options runtime "$loader" 2>&1 | grep -v "replacing existing signature" || {
+                    echo "    Warning: Failed to sign $(basename "$loader") - continuing anyway"
+                }
+            else
+                codesign --force --sign - "$loader" 2>&1 | grep -v "replacing existing signature" || true
+            fi
         fi
     done
 fi
 
 # Sign the main executable
 echo "  Signing main executable..."
-codesign --force --sign "${SIGN_IDENTITY}" "${MACOS_DIR}/${APP_NAME}.bin" || {
-    echo "ERROR: Failed to sign main executable"
-    exit 1
-}
+if [ "$SIGN_IDENTITY" != "-" ]; then
+    codesign --force --sign "${SIGN_IDENTITY}" --timestamp --options runtime "${MACOS_DIR}/${APP_NAME}.bin" || {
+        echo "ERROR: Failed to sign main executable"
+        echo "This may be due to keychain access issues. Try:"
+        echo "  1. Ensure your keychain is unlocked: security unlock-keychain"
+        echo "  2. Verify your certificate: security find-identity -v -p codesigning"
+        echo "  3. Check certificate access: codesign --verify --deep --strict --verbose=2 \"${MACOS_DIR}/${APP_NAME}.bin\""
+        exit 1
+    }
+else
+    codesign --force --sign - "${MACOS_DIR}/${APP_NAME}.bin" || {
+        echo "ERROR: Failed to sign main executable"
+        exit 1
+    }
+fi
 
 # Sign the whole bundle with entitlements if using a real identity
 echo "  Signing application bundle..."
