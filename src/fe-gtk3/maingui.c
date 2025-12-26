@@ -2338,8 +2338,18 @@ mg_word_clicked (GtkWidget *xtext, char *word, GdkEventButton *even)
 			case WORD_URL:
 			case WORD_HOST6:
 			case WORD_HOST:
-				word[end] = 0;
-				fe_open_url (word + start);
+				/* For textview widget, the word is already the complete URL */
+				/* For compatibility with old xtext, handle both cases */
+				if (start < strlen(word) && end <= strlen(word))
+				{
+					word[end] = 0;
+					fe_open_url (word + start);
+				}
+				else
+				{
+					/* Word is already the URL, open it directly */
+					fe_open_url (word);
+				}
 				break;
 			}
 		}

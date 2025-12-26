@@ -136,6 +136,13 @@ scroll_to_mark_idle (gpointer user_data)
 		
 		if (view_buffer == mark_buffer && data->should_scroll)
 		{
+			/* Make sure the widget is properly realized and mapped */
+			if (!gtk_widget_get_realized (GTK_WIDGET (data->chat)))
+				gtk_widget_realize (GTK_WIDGET (data->chat));
+			
+			/* Force a redraw to ensure content is visible */
+			gtk_widget_queue_draw (GTK_WIDGET (data->chat));
+			
 			/* Find the scrolled window and scroll to bottom by setting adjustment */
 			parent = gtk_widget_get_parent (GTK_WIDGET (data->chat));
 			while (parent && !GTK_IS_SCROLLED_WINDOW (parent))
@@ -224,20 +231,14 @@ pchat_textview_chat_create_tags (PchatTextViewChat *chat)
 }
 
 static gboolean
-pchat_textview_chat_event_after (GtkWidget *widget, GdkEvent *event, gpointer user_data)
+pchat_textview_chat_button_press (GtkWidget *widget, GdkEventButton *button_event, gpointer user_data)
 {
 	PchatTextViewChat *chat = PCHAT_TEXTVIEW_CHAT (widget);
 	GtkTextIter start, end, iter;
 	GtkTextBuffer *buffer;
-	GdkEventButton *button_event;
 	gint x, y;
 	GSList *tags, *tagp;
 	gchar *url = NULL;
-	
-	if (event->type != GDK_BUTTON_RELEASE)
-		return FALSE;
-		
-	button_event = (GdkEventButton *) event;
 	
 	if (button_event->button != 1)
 		return FALSE;
@@ -408,7 +409,7 @@ pchat_textview_chat_class_init (PchatTextViewChatClass *klass)
 	                                       G_SIGNAL_RUN_LAST,
 	                                       G_STRUCT_OFFSET (PchatTextViewChatClass, word_clicked),
 	                                       NULL, NULL,
-	                                       g_cclosure_marshal_VOID__STRING,
+	                                       NULL, /* Use generic marshaller */
 	                                       G_TYPE_NONE, 2,
 	                                       G_TYPE_STRING,
 	                                       GDK_TYPE_EVENT | G_SIGNAL_TYPE_STATIC_SCOPE);
@@ -451,9 +452,9 @@ pchat_textview_chat_init (PchatTextViewChat *chat)
 	gtk_text_view_set_left_margin (GTK_TEXT_VIEW (chat), 4);
 	gtk_text_view_set_right_margin (GTK_TEXT_VIEW (chat), 4);
 	
-	/* Connect click handler for URLs */
-	g_signal_connect (chat, "event-after",
-	                  G_CALLBACK (pchat_textview_chat_event_after), NULL);
+	/* Connect click handler for URLs - use button-press to detect clicks */
+	g_signal_connect (chat, "button-press-event",
+	                  G_CALLBACK (pchat_textview_chat_button_press), NULL);
 	g_signal_connect (chat, "motion-notify-event",
 	                  G_CALLBACK (pchat_textview_chat_motion_notify), NULL);
 	g_signal_connect (chat, "leave-notify-event",
@@ -533,6 +534,10 @@ pchat_chat_buffer_show (PchatTextViewChat *chat, PchatChatBuffer *buf)
 	
 	priv->current_buffer = buf;
 	gtk_text_view_set_buffer (GTK_TEXT_VIEW (chat), buf->buffer);
+	
+	/* Force the widget to realize it needs to redraw */
+	gtk_widget_queue_draw (GTK_WIDGET (chat));
+	gtk_widget_queue_resize (GTK_WIDGET (chat));
 	
 	/* Scroll to end using idle callback to ensure proper layout */
 	ScrollData *scroll_data = g_new0 (ScrollData, 1);
