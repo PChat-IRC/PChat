@@ -1681,7 +1681,7 @@ menu_about (GtkWidget *wid, gpointer sess)
 	gtk_about_dialog_set_program_name (dialog, DISPLAY_NAME);
 	gtk_about_dialog_set_version (dialog, PACKAGE_VERSION);
 	gtk_about_dialog_set_license (dialog, license); /* gtk3 can use GTK_LICENSE_GPL_2_0 */
-	gtk_about_dialog_set_website (dialog, "https://thatzachbacon/pchat");
+	gtk_about_dialog_set_website (dialog, "https://thatzachbacon.com/pchat");
 	gtk_about_dialog_set_website_label (dialog, "Website");
 	gtk_about_dialog_set_logo (dialog, pix_xchat);
 	gtk_about_dialog_set_copyright (dialog, "\302\251 1998-2010 Peter \305\275elezn\303\275\n\302\251 2009-2013 Berke Viktor\n\302\251 2024-2025 Zach Bacon");
