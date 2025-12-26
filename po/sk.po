@@ -8,7 +8,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: xchat 2.4.2\n"
-"Report-Msgid-Bugs-To: www.pchat-irc.net\n"
+"Report-Msgid-Bugs-To: www.thatzachbacon.com/pchat\n"
 "POT-Creation-Date: 2012-11-16 11:40-0400\n"
 "PO-Revision-Date: 2005-03-07 20:16+0100\n"
 "Last-Translator: Andrej Kacian <andrej@kacian.sk>\n"

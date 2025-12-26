@@ -4,7 +4,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: xchat 2.6.0\n"
-"Report-Msgid-Bugs-To: www.pchat-irc.net\n"
+"Report-Msgid-Bugs-To: www.thatzachbacon.com/pchat\n"
 "POT-Creation-Date: 2012-11-16 11:40-0400\n"
 "PO-Revision-Date: 2005-11-07 21:49+0200\n"
 "Last-Translator: Besnik Bleta <besnik@spymac.com>\n"
