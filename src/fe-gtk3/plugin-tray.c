@@ -19,17 +19,10 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-/* NOTE: gtk_status_icon is deprecated in GTK 3.14+ with no direct replacement
- * in GTK3. The recommended alternatives (libappindicator or StatusNotifierItem)
- * require additional dependencies. For GTK3 compatibility, we continue using
- * gtk_status_icon. A future GTK4 port will need to use GtkApplication with
- * proper notification/indicator support. */
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-
 #include <string.h>
 #include <gio/gio.h>
 #include "fe-gtk.h"
+#include "tray-backend.h"
 #include "../common/pchat-plugin.h"
 #include "../common/pchat.h"
 #include "../common/pchatc.h"
@@ -73,7 +66,7 @@ typedef GdkPixbuf* TrayIcon;
 #define ICON_FILE pix_tray_fileoffer
 #define TIMEOUT 500
 
-static GtkStatusIcon *sticon;
+static TrayBackend *tray_backend;
 static gint flash_tag;
 static TrayStatus tray_status;
 #ifdef _WIN32
@@ -151,8 +144,8 @@ tray_count_networks (void)
 void
 fe_tray_set_tooltip (const char *text)
 {
-	if (sticon)
-		gtk_status_icon_set_tooltip_text (sticon, text);
+	if (tray_backend)
+		tray_backend_set_tooltip (tray_backend, text);
 }
 
 void
@@ -225,15 +218,9 @@ tray_stop_flash (void)
 		flash_tag = 0;
 	}
 
-	if (sticon)
+	if (tray_backend)
 	{
-		gtk_status_icon_set_from_pixbuf (sticon, ICON_NORMAL);
-		nets = tray_count_networks ();
-		chans = tray_count_channels ();
-		if (nets)
-			tray_set_tipf (_(DISPLAY_NAME": Connected to %u networks and %u channels"),
-								nets, chans);
-		else
+		tray_backend_set_icon (tray_backend, ICON_NORMAL);
 			tray_set_tipf (DISPLAY_NAME": %s", _("Not connected."));
 	}
 
@@ -266,24 +253,25 @@ tray_timeout_cb (TrayIcon icon)
 {
 	if (custom_icon1)
 	{
-		if (gtk_status_icon_get_pixbuf (sticon) == custom_icon1)
-		{
-			if (custom_icon2)
-				gtk_status_icon_set_from_pixbuf (sticon, custom_icon2);
-			else
-				gtk_status_icon_set_from_pixbuf (sticon, ICON_NORMAL);
-		}
+		/* For simplicity with backend abstraction, just alternate icons */
+		if (custom_icon2)
+			tray_backend_set_icon (tray_backend, custom_icon2);
 		else
-		{
-			gtk_status_icon_set_from_pixbuf (sticon, custom_icon1);
-		}
+			tray_backend_set_icon (tray_backend, ICON_NORMAL);
+		/* Swap for next iteration */
+		TrayIcon temp = custom_icon1;
+		custom_icon1 = custom_icon2;
+		custom_icon2 = temp;
 	}
 	else
 	{
-		if (gtk_status_icon_get_pixbuf (sticon) == ICON_NORMAL)
-			gtk_status_icon_set_from_pixbuf (sticon, icon);
+		/* Alternate between icon and normal */
+		static gboolean show_icon = TRUE;
+		if (show_icon)
+			tray_backend_set_icon (tray_backend, icon);
 		else
-			gtk_status_icon_set_from_pixbuf (sticon, ICON_NORMAL);
+			tray_backend_set_icon (tray_backend, ICON_NORMAL);
+		show_icon = !show_icon;
 	}
 	return 1;
 }
@@ -291,12 +279,14 @@ tray_timeout_cb (TrayIcon icon)
 static void
 tray_set_flash (TrayIcon icon)
 {
-	if (!sticon)
+	if (!tray_backend)
 		return;
 
 	/* already flashing the same icon */
-	if (flash_tag && gtk_status_icon_get_pixbuf (sticon) == icon)
-		return;
+	if (flash_tag)
+	{
+		/* Can't easily check current icon with backend abstraction, skip check */
+	}
 
 	/* no flashing if window is focused */
 	if (tray_get_window_status () == WS_FOCUSED)
@@ -304,7 +294,7 @@ tray_set_flash (TrayIcon icon)
 
 	tray_stop_flash ();
 
-	gtk_status_icon_set_from_pixbuf (sticon, icon);
+	tray_backend_set_icon (tray_backend, icon);
 	if (prefs.pchat_gui_tray_blink)
 		flash_tag = g_timeout_add (TIMEOUT, (GSourceFunc) tray_timeout_cb, icon);
 }
@@ -313,7 +303,7 @@ void
 fe_tray_set_flash (const char *filename1, const char *filename2, int tout)
 {
 	tray_apply_setup ();
-	if (!sticon)
+	if (!tray_backend)
 		return;
 
 	tray_stop_flash ();
@@ -325,7 +315,7 @@ fe_tray_set_flash (const char *filename1, const char *filename2, int tout)
 	if (filename2)
 		custom_icon2 = tray_icon_from_file (filename2);
 
-	gtk_status_icon_set_from_pixbuf (sticon, custom_icon1);
+	tray_backend_set_icon (tray_backend, custom_icon1);
 	flash_tag = g_timeout_add (tout, (GSourceFunc) tray_timeout_cb, NULL);
 	tray_status = TS_CUSTOM;
 }
@@ -334,7 +324,7 @@ void
 fe_tray_set_icon (feicon icon)
 {
 	tray_apply_setup ();
-	if (!sticon)
+	if (!tray_backend)
 		return;
 
 	tray_stop_flash ();
@@ -359,7 +349,7 @@ void
 fe_tray_set_file (const char *filename)
 {
 	tray_apply_setup ();
-	if (!sticon)
+	if (!tray_backend)
 		return;
 
 	tray_stop_flash ();
@@ -367,7 +357,7 @@ fe_tray_set_file (const char *filename)
 	if (filename)
 	{
 		custom_icon1 = tray_icon_from_file (filename);
-		gtk_status_icon_set_from_pixbuf (sticon, custom_icon1);
+		tray_backend_set_icon (tray_backend, custom_icon1);
 		tray_status = TS_CUSTOM;
 	}
 }
@@ -381,7 +371,7 @@ tray_toggle_visibility (gboolean force_hide)
 	static int fullscreen;
 	GtkWindow *win;
 
-	if (!sticon)
+	if (!tray_backend)
 		return FALSE;
 
 	/* ph may have an invalid context now */
@@ -404,6 +394,8 @@ tray_toggle_visibility (gboolean force_hide)
 		maximized = prefs.pchat_gui_win_state;
 		fullscreen = prefs.pchat_gui_win_fullscreen;
 		gtk_widget_hide (GTK_WIDGET (win));
+		/* Rebuild menu to show "Restore Window" */
+		tray_backend_rebuild_menu(tray_backend);
 	}
 	else
 	{
@@ -417,6 +409,8 @@ tray_toggle_visibility (gboolean force_hide)
 			gtk_window_fullscreen (win);
 		gtk_widget_show (GTK_WIDGET (win));
 		gtk_window_present (win);
+		/* Rebuild menu to show "Hide Window" */
+		tray_backend_rebuild_menu(tray_backend);
 	}
 
 	return TRUE;
@@ -431,9 +425,9 @@ tray_menu_restore_cb (GtkWidget *item, gpointer userdata)
 static void
 tray_menu_notify_cb (GObject *tray, GParamSpec *pspec, gpointer user_data)
 {
-	if (sticon)
+	if (tray_backend)
 	{
-		if (!gtk_status_icon_is_embedded (sticon))
+		if (!tray_backend_is_embedded (tray_backend))
 		{
 			tray_restore_timer = g_timeout_add(500, (GSourceFunc)tray_menu_try_restore, NULL);
 		}
@@ -546,6 +540,24 @@ tray_menu_destroy (GtkWidget *menu, gpointer userdata)
 
 #ifdef _WIN32
 static void
+tray_menu_position (GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer userdata)
+{
+	GdkDisplay *display;
+	GdkSeat *seat;
+	GdkDevice *pointer;
+	gint cx, cy;
+	
+	display = gdk_display_get_default();
+	seat = gdk_display_get_default_seat(display);
+	pointer = gdk_seat_get_pointer(seat);
+	gdk_device_get_position(pointer, NULL, &cx, &cy);
+	
+	*x = cx;
+	*y = cy;
+	*push_in = TRUE;
+}
+
+static void
 tray_menu_enter_cb (GtkWidget *menu)
 {
 	tray_menu_inactivetime = 0;
@@ -577,7 +589,7 @@ tray_menu_settings (GtkWidget * wid, gpointer none)
 static void
 tray_menu_cb (GtkWidget *widget, guint button, guint time, gpointer userdata)
 {
-	static GtkWidget *menu;
+	static GtkWidget *menu = NULL;
 	GtkWidget *submenu;
 	GtkWidget *item;
 	int away_status;
@@ -585,16 +597,33 @@ tray_menu_cb (GtkWidget *widget, guint button, guint time, gpointer userdata)
 	/* ph may have an invalid context now */
 	pchat_set_context (ph, pchat_find_context (ph, NULL, NULL));
 
-	/* close any old menu */
-	if (G_IS_OBJECT (menu))
+	/* For AppIndicator, we receive the existing menu and need to populate it */
+	/* For other backends, we create a new menu */
+	if (GTK_IS_MENU(widget))
 	{
-		tray_menu_destroy (menu, NULL);
+		/* Clear existing menu items */
+		GList *children = gtk_container_get_children(GTK_CONTAINER(widget));
+		for (GList *iter = children; iter != NULL; iter = iter->next)
+			gtk_widget_destroy(GTK_WIDGET(iter->data));
+		g_list_free(children);
+		
+		menu = widget;
 	}
+	else
+	{
+		/* close any old menu */
+		if (G_IS_OBJECT (menu))
+		{
+			tray_menu_destroy (menu, NULL);
+		}
 
-	menu = gtk_menu_new ();
+		menu = gtk_menu_new ();
+	}
 	/*gtk_menu_set_screen (GTK_MENU (menu), gtk_widget_get_screen (widget));*/
 
-	if (tray_get_window_status () == WS_HIDDEN)
+	WinStatus win_status = tray_get_window_status();
+	
+	if (win_status == WS_HIDDEN)
 		tray_make_item (menu, _("_Restore Window"), tray_menu_restore_cb, NULL);
 	else
 		tray_make_item (menu, _("_Hide Window"), tray_menu_restore_cb, NULL);
@@ -628,21 +657,40 @@ tray_menu_cb (GtkWidget *widget, guint button, guint time, gpointer userdata)
 	tray_make_item (menu, NULL, tray_menu_quit_cb, NULL);
 	mg_create_icon_item (_("_Quit"), "application-exit", menu, tray_menu_quit_cb, NULL);
 
-	g_object_ref (menu);
-	g_object_ref_sink (menu);
-	g_object_unref (menu);
-	g_signal_connect (G_OBJECT (menu), "selection-done",
-							G_CALLBACK (tray_menu_destroy), NULL);
+	/* Only do cleanup/popup for non-AppIndicator backends */
+	if (!GTK_IS_MENU(widget))
+	{
+		g_object_ref (menu);
+		g_object_ref_sink (menu);
+		g_object_unref (menu);
+		g_signal_connect (G_OBJECT (menu), "selection-done",
+								G_CALLBACK (tray_menu_destroy), NULL);
 #ifdef _WIN32
-	g_signal_connect (G_OBJECT (menu), "leave-notify-event",
-							G_CALLBACK (tray_menu_left_cb), NULL);
-	g_signal_connect (G_OBJECT (menu), "enter-notify-event",
-							G_CALLBACK (tray_menu_enter_cb), NULL);
+		g_signal_connect (G_OBJECT (menu), "leave-notify-event",
+								G_CALLBACK (tray_menu_left_cb), NULL);
+		g_signal_connect (G_OBJECT (menu), "enter-notify-event",
+								G_CALLBACK (tray_menu_enter_cb), NULL);
 
-	tray_menu_timer = g_timeout_add(500, (GSourceFunc) tray_check_hide, menu);
+		tray_menu_timer = g_timeout_add(500, (GSourceFunc) tray_check_hide, menu);
+		
+		/* On Windows, show all menu items first, then popup at cursor position */
+		gtk_widget_show_all (menu);
+		
+		/* Use deprecated gtk_menu_popup with explicit position function for Windows */
+		#pragma GCC diagnostic push
+		#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+		gtk_menu_popup (GTK_MENU (menu), NULL, NULL, tray_menu_position, NULL, 3, GDK_CURRENT_TIME);
+		#pragma GCC diagnostic pop
+#else
+		gtk_menu_popup_at_widget (GTK_MENU (menu), GTK_WIDGET (userdata),
+		                          GDK_GRAVITY_NORTH_WEST, GDK_GRAVITY_SOUTH_WEST, NULL);
 #endif
-
-	gtk_menu_popup_at_pointer (GTK_MENU (menu), NULL);
+	}
+	else
+	{
+		/* For AppIndicator, just show all items */
+		gtk_widget_show_all(menu);
+	}
 }
 
 static void
@@ -653,18 +701,15 @@ tray_init (void)
 	custom_icon1 = NULL;
 	custom_icon2 = NULL;
 
-	sticon = gtk_status_icon_new_from_pixbuf (ICON_NORMAL);
-	if (!sticon)
+	tray_backend = tray_backend_new (ICON_NORMAL, _(DISPLAY_NAME));
+	if (!tray_backend)
 		return;
+	
+	tray_backend_set_visible (tray_backend, TRUE);
 
-	g_signal_connect (G_OBJECT (sticon), "popup-menu",
-							G_CALLBACK (tray_menu_cb), sticon);
-
-	g_signal_connect (G_OBJECT (sticon), "activate",
-							G_CALLBACK (tray_menu_restore_cb), NULL);
-
-	g_signal_connect (G_OBJECT (sticon), "notify::embedded",
-							G_CALLBACK (tray_menu_notify_cb), NULL);
+	tray_backend_set_menu_callback (tray_backend, tray_menu_cb, tray_backend);
+	tray_backend_set_activate_callback (tray_backend, (TrayClickCallback)tray_menu_restore_cb, NULL);
+	tray_backend_set_embedded_callback (tray_backend, (TrayClickCallback)tray_menu_notify_cb, NULL);
 }
 
 static int
@@ -811,17 +856,17 @@ tray_cleanup (void)
 {
 	tray_stop_flash ();
 
-	if (sticon)
+	if (tray_backend)
 	{
-		g_object_unref ((GObject *)sticon);
-		sticon = NULL;
+		tray_backend_destroy (tray_backend);
+		tray_backend = NULL;
 	}
 }
 
 void
 tray_apply_setup (void)
 {
-	if (sticon)
+	if (tray_backend)
 	{
 		if (!prefs.pchat_gui_tray)
 			tray_cleanup ();

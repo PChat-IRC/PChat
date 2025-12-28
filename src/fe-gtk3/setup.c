@@ -174,6 +174,7 @@ static const setting appearance_settings[] =
 	{ST_HEADER,	N_("Title Bar"),0,0,0},
 	{ST_TOGGLE, N_("Show channel modes"), P_OFFINTNL(pchat_gui_win_modes),0,0,0},
 	{ST_TOGGLR, N_("Show number of users"), P_OFFINTNL(pchat_gui_win_ucount),0,0,0},
+	{ST_TOGGLE, N_("Show nickname"), P_OFFINTNL(pchat_gui_win_nick),0,0,0},
 
 	{ST_END, 0, 0, 0, 0, 0}
 };
@@ -205,11 +206,9 @@ static const setting inputbox_settings[] =
 	{ST_MENU,	N_("Nick completion sorted:"), P_OFFINTNL(pchat_completion_sort), 0, tabcompmenu, 0},
 	{ST_NUMBER,	N_("Nick completion amount:"), P_OFFINTNL(pchat_completion_amount), N_("Threshold of nicks to start listing instead of completing"), (const char **)N_("nicks."), 1000},
 
-#if 0	/* obsolete */
 	{ST_HEADER, N_("Input Box Codes"),0,0,0},
 	{ST_TOGGLE, N_("Interpret %nnn as an ASCII value"), P_OFFINTNL(pchat_input_perc_ascii),0,0,0},
 	{ST_TOGGLE, N_("Interpret %C, %B as Color, Bold etc"), P_OFFINTNL(pchat_input_perc_color),0,0,0},
-#endif
 
 	{ST_END, 0, 0, 0, 0, 0}
 };
@@ -321,6 +320,7 @@ static const setting tabs_settings[] =
 	{ST_TOGGLE, N_("Show icons in the channel tree"), P_OFFINTNL(pchat_gui_tab_icons), 0, 0, 0},
 	{ST_TOGGLE, N_("Show dotted lines in the channel tree"), P_OFFINTNL(pchat_gui_tab_dots), 0, 0, 0},
 	{ST_TOGGLE, N_("Scroll mouse-wheel to change tabs"), P_OFFINTNL (pchat_gui_tab_scrollchans), 0, 0, 0},
+	{ST_TOGGLE, N_("Middle click to close tab"), P_OFFINTNL(pchat_gui_tab_middleclose), 0, 0, 0},
 	{ST_TOGGLE, N_("Smaller text"), P_OFFINTNL(pchat_gui_tab_small), 0, 0, 0},
 	{ST_MENU,	N_("Focus new tabs:"), P_OFFINTNL(pchat_gui_tab_newtofront), 0, focusnewtabsmenu, 0},
 	{ST_MENU,	N_("Placement of notices:"), P_OFFINTNL(pchat_irc_notice_pos), 0, noticeposmenu, 0},
@@ -483,6 +483,7 @@ static const setting general_settings[] =
 	{ST_TOGGLE,	N_("Display MODEs in raw form"), P_OFFINTNL(pchat_irc_raw_modes), 0, 0, 0},
 	{ST_TOGGLE,	N_("WHOIS on notify"), P_OFFINTNL(pchat_notify_whois_online), N_("Sends a /WHOIS when a user comes online in your notify list."), 0, 0},
 	{ST_TOGGLE,	N_("Hide join and part messages"), P_OFFINTNL(pchat_irc_conf_mode), N_("Hide channel join/part messages by default."), 0, 0},
+	{ST_TOGGLE,	N_("Hide nick change messages"), P_OFFINTNL(pchat_irc_hide_nickchange), 0, 0, 0},
 
 	{ST_END, 0, 0, 0, 0, 0}
 };
@@ -605,6 +606,16 @@ static const setting network_settings[] =
 #endif
 	{ST_ENTRY,	N_("Username:"), P_OFFSETNL(pchat_net_proxy_user), 0, 0, sizeof prefs.pchat_net_proxy_user},
 	{ST_ENTRY,	N_("Password:"), P_OFFSETNL(pchat_net_proxy_pass), 0, GINT_TO_POINTER(1), sizeof prefs.pchat_net_proxy_pass},
+
+	{ST_END, 0, 0, 0, 0, 0}
+};
+
+static const setting identd_settings[] =
+{
+	{ST_HEADER, N_("Identd Server"), 0, 0, 0, 0},
+	{ST_TOGGLE, N_("Enabled"), P_OFFINTNL(pchat_identd_server), N_("Server will respond with the network's username"), 0, 1},
+	{ST_NUMBER,	N_("Port:"), P_OFFINTNL(pchat_identd_port), N_("You must have permissions to listen on this port. "
+											   "If not 113 (0 defaults to this) then you must configure port-forwarding."), 0, 65535},
 
 	{ST_END, 0, 0, 0, 0, 0}
 };
@@ -1876,6 +1887,7 @@ static const char *const cata[] =
 	N_("Network"),
 		N_("Network setup"),
 		N_("File transfers"),
+		N_("Identd"),
 		NULL,
 	NULL
 };
@@ -1910,6 +1922,7 @@ setup_create_pages (GtkWidget *box)
 
 	setup_add_page (cata[15], book, setup_create_page (network_settings));
 	setup_add_page (cata[16], book, setup_create_page (filexfer_settings));
+	setup_add_page (cata[17], book, setup_create_page (identd_settings));
 
 	gtk_notebook_set_show_tabs (GTK_NOTEBOOK (book), FALSE);
 	gtk_notebook_set_show_border (GTK_NOTEBOOK (book), FALSE);

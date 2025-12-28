@@ -20,8 +20,12 @@
 /* IRC color/format codes */
 #define IRC_BOLD        '\002'
 #define IRC_COLOR       '\003'
+#define IRC_BLINK       '\006'
+#define IRC_BEEP        '\007'
+#define IRC_HIDDEN      '\010'
 #define IRC_RESET       '\017'
 #define IRC_REVERSE     '\026'
+#define IRC_STRIKETHROUGH '\036'
 #define IRC_ITALIC      '\035'
 #define IRC_UNDERLINE   '\037'
 
@@ -40,6 +44,8 @@ struct _PchatTextViewChatPrivate
 	GtkTextTag *bold_tag;
 	GtkTextTag *italic_tag;
 	GtkTextTag *underline_tag;
+	GtkTextTag *strikethrough_tag;
+	GtkTextTag *hidden_tag;
 	
 	/* Color tags (indexed by mIRC color number) */
 	GtkTextTag *fg_color_tags[16];
@@ -193,6 +199,14 @@ pchat_textview_chat_create_tags (PchatTextViewChat *chat)
 	priv->underline_tag = gtk_text_tag_new ("underline");
 	g_object_set (priv->underline_tag, "underline", PANGO_UNDERLINE_SINGLE, NULL);
 	gtk_text_tag_table_add (priv->tag_table, priv->underline_tag);
+	
+	priv->strikethrough_tag = gtk_text_tag_new ("strikethrough");
+	g_object_set (priv->strikethrough_tag, "strikethrough", TRUE, NULL);
+	gtk_text_tag_table_add (priv->tag_table, priv->strikethrough_tag);
+	
+	priv->hidden_tag = gtk_text_tag_new ("hidden");
+	g_object_set (priv->hidden_tag, "invisible", TRUE, NULL);
+	gtk_text_tag_table_add (priv->tag_table, priv->hidden_tag);
 	
 	/* Create URL tag */
 	priv->url_tag = gtk_text_tag_new ("url");
@@ -604,6 +618,7 @@ static void
 flush_text_with_formatting (GtkTextBuffer *buffer, GtkTextIter *iter, GString *text,
                              PchatTextViewChatPrivate *priv, GtkWidget *widget,
                              gboolean bold, gboolean italic, gboolean underline,
+                             gboolean strikethrough, gboolean hidden, gboolean reverse,
                              gint fg_color, gint bg_color)
 {
 	GtkTextMark *start_mark;
@@ -629,10 +644,26 @@ flush_text_with_formatting (GtkTextBuffer *buffer, GtkTextIter *iter, GString *t
 		gtk_text_buffer_apply_tag (buffer, priv->italic_tag, &start_iter, iter);
 	if (underline)
 		gtk_text_buffer_apply_tag (buffer, priv->underline_tag, &start_iter, iter);
-	if (fg_color >= 0 && fg_color < 16)
-		gtk_text_buffer_apply_tag (buffer, priv->fg_color_tags[fg_color], &start_iter, iter);
-	if (bg_color >= 0 && bg_color < 16)
-		gtk_text_buffer_apply_tag (buffer, priv->bg_color_tags[bg_color], &start_iter, iter);
+	if (strikethrough)
+		gtk_text_buffer_apply_tag (buffer, priv->strikethrough_tag, &start_iter, iter);
+	if (hidden)
+		gtk_text_buffer_apply_tag (buffer, priv->hidden_tag, &start_iter, iter);
+	
+	/* Handle reverse (swap fg/bg colors) */
+	if (reverse)
+	{
+		if (bg_color >= 0 && bg_color < 16)
+			gtk_text_buffer_apply_tag (buffer, priv->fg_color_tags[bg_color], &start_iter, iter);
+		if (fg_color >= 0 && fg_color < 16)
+			gtk_text_buffer_apply_tag (buffer, priv->bg_color_tags[fg_color], &start_iter, iter);
+	}
+	else
+	{
+		if (fg_color >= 0 && fg_color < 16)
+			gtk_text_buffer_apply_tag (buffer, priv->fg_color_tags[fg_color], &start_iter, iter);
+		if (bg_color >= 0 && bg_color < 16)
+			gtk_text_buffer_apply_tag (buffer, priv->bg_color_tags[bg_color], &start_iter, iter);
+	}
 	
 	/* Check for URLs on word boundaries */
 	if (priv->urlcheck_func)
@@ -695,6 +726,7 @@ pchat_textview_chat_append_with_formatting (PchatTextViewChat *chat, GtkTextBuff
 	GString *current_text = g_string_new (NULL);
 	gint fg_color = -1, bg_color = -1;
 	gboolean bold = FALSE, italic = FALSE, underline = FALSE;
+	gboolean strikethrough = FALSE, hidden = FALSE, reverse = FALSE;
 	
 	gtk_text_buffer_get_end_iter (buffer, &iter);
 	
@@ -703,25 +735,48 @@ pchat_textview_chat_append_with_formatting (PchatTextViewChat *chat, GtkTextBuff
 		if (*p == IRC_BOLD)
 		{
 			/* Flush accumulated text with current formatting before toggling */
-			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, fg_color, bg_color);
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
 			bold = !bold;
 			p++;
 		}
 		else if (*p == IRC_ITALIC)
 		{
-			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, fg_color, bg_color);
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
 			italic = !italic;
 			p++;
 		}
 		else if (*p == IRC_UNDERLINE)
 		{
-			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, fg_color, bg_color);
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
 			underline = !underline;
+			p++;
+		}
+		else if (*p == IRC_STRIKETHROUGH)
+		{
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
+			strikethrough = !strikethrough;
+			p++;
+		}
+		else if (*p == IRC_HIDDEN)
+		{
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
+			hidden = !hidden;
+			p++;
+		}
+		else if (*p == IRC_REVERSE)
+		{
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
+			reverse = !reverse;
+			p++;
+		}
+		else if (*p == IRC_BLINK || *p == IRC_BEEP)
+		{
+			/* Blink and beep are deprecated/annoying - just skip them */
 			p++;
 		}
 		else if (*p == IRC_COLOR)
 		{
-			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, fg_color, bg_color);
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
 			p++;
 			
 			/* Parse color code */
@@ -754,8 +809,8 @@ pchat_textview_chat_append_with_formatting (PchatTextViewChat *chat, GtkTextBuff
 		}
 		else if (*p == IRC_RESET)
 		{
-			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, fg_color, bg_color);
-			bold = italic = underline = FALSE;
+			flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
+			bold = italic = underline = strikethrough = hidden = reverse = FALSE;
 			fg_color = bg_color = -1;
 			p++;
 		}
@@ -777,7 +832,7 @@ pchat_textview_chat_append_with_formatting (PchatTextViewChat *chat, GtkTextBuff
 	}
 	
 	/* Flush any remaining text */
-	flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, fg_color, bg_color);
+	flush_text_with_formatting (buffer, &iter, current_text, priv, GTK_WIDGET (chat), bold, italic, underline, strikethrough, hidden, reverse, fg_color, bg_color);
 	g_string_free (current_text, TRUE);
 }
 

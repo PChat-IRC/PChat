@@ -1475,6 +1475,10 @@ mg_color_insert (GtkWidget *item, gpointer userdata)
 			text = "\037"; break;
 		case 102:
 			text = "\035"; break;
+		case 103:
+			text = "\036"; break;
+		case 104:
+			text = "\026"; break;
 		default:
 			text = "\017"; break;
 		}
@@ -1528,7 +1532,9 @@ mg_create_color_menu (GtkWidget *menu, session *sess)
 	mg_markup_item (submenu, _("<b>Bold</b>"), 100);
 	mg_markup_item (submenu, _("<u>Underline</u>"), 101);
 	mg_markup_item (submenu, _("<i>Italic</i>"), 102);
-	mg_markup_item (submenu, _("Normal"), 103);
+	mg_markup_item (submenu, _("<s>Strikethrough</s>"), 103);
+	mg_markup_item (submenu, _("Reverse"), 104);
+	mg_markup_item (submenu, _("Normal"), 105);
 
 	subsubmenu = mg_submenu (submenu, _("Colors 0-7"));
 

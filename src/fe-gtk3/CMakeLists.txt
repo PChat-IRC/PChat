@@ -65,6 +65,8 @@ if(WIN32)
         palette.c
         pixmaps.c
         plugin-tray.c
+        tray-backend.c
+        tray-windows.c
         ${NOTIFICATION_SOURCES}
         rawlog.c
         servlistgui.c
@@ -95,6 +97,8 @@ else()
         palette.c
         pixmaps.c
         plugin-tray.c
+        tray-backend.c
+        tray-linux.c
         ${NOTIFICATION_SOURCES}
         rawlog.c
         servlistgui.c
@@ -160,12 +164,27 @@ add_custom_command(
 
 target_sources(pchat PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/resources.c)
 
+# libayatana-appindicator3 for Linux tray support
+if(UNIX AND NOT APPLE AND NOT WIN32)
+    pkg_check_modules(APPINDICATOR ayatana-appindicator3-0.1)
+    if(NOT APPINDICATOR_FOUND)
+        # Try alternative package name on some distros
+        pkg_check_modules(APPINDICATOR ayatana-indicator3-0.4)
+    endif()
+    if(APPINDICATOR_FOUND)
+        message(STATUS "Found libayatana-appindicator3: ${APPINDICATOR_LIBRARIES}")
+    else()
+        message(WARNING "libayatana-appindicator3 not found - tray icon may not work on modern Linux desktops")
+    endif()
+endif()
+
 # Include directories
 target_include_directories(pchat PRIVATE
     ${CMAKE_SOURCE_DIR}/src/common
     ${CMAKE_BINARY_DIR}/src/common
     ${GTK3_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
+    ${APPINDICATOR_INCLUDE_DIRS}
 )
 
 # Compiler definitions
@@ -184,6 +203,7 @@ target_link_libraries(pchat PRIVATE
     pchatcommon
     ${GTK3_LIBRARIES}
     ${GLIB_LIBRARIES}
+    ${APPINDICATOR_LIBRARIES}
 )
 
 # macOS frameworks for native notifications
