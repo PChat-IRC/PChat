@@ -46,9 +46,10 @@
 #define backend_destroy tray_windows_destroy
 
 #elif defined(__APPLE__)
-/* macOS implementation - to be added later */
-#define BACKEND_NAME "macOS"
-/* Placeholder */
+/* macOS implementation disabled due to GTK/NSApplication conflicts
+ * Status bar items don't appear reliably when launched from app bundle */
+#define BACKEND_NAME "macOS (disabled)"
+/* No backend - tray will not be available on macOS */
 
 #else
 /* Fallback to GtkStatusIcon */
@@ -141,6 +142,9 @@ void tray_backend_rebuild_menu(TrayBackend *backend)
 #elif defined(_WIN32)
 	/* Windows doesn't use persistent menus like AppIndicator,
 	 * menu is created on-demand when right-clicking */
+#elif defined(__APPLE__)
+	/* macOS doesn't use persistent menus,
+	 * menu is created on-demand when right-clicking or ctrl-clicking */
 #endif
 }
 

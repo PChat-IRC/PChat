@@ -889,6 +889,13 @@ tray_plugin_init (pchat_plugin *plugin_handle, char **plugin_name,
 	*plugin_desc = "";
 	*plugin_version = "";
 
+	g_print("tray_plugin_init: Starting initialization\n");
+	fprintf(stderr, "tray_plugin_init: Starting initialization\n");
+	g_print("tray_plugin_init: prefs.pchat_gui_tray = %d\n", prefs.pchat_gui_tray);
+	fprintf(stderr, "tray_plugin_init: prefs.pchat_gui_tray = %d\n", prefs.pchat_gui_tray);
+	g_print("tray_plugin_init: unity_mode() = %d\n", unity_mode());
+	fprintf(stderr, "tray_plugin_init: unity_mode() = %d\n", unity_mode());
+
 	pchat_hook_print (ph, "Channel Msg Hilight", -1, tray_hilight_cb, NULL);
 	pchat_hook_print (ph, "Channel Action Hilight", -1, tray_hilight_cb, NULL);
 
@@ -906,7 +913,18 @@ tray_plugin_init (pchat_plugin *plugin_handle, char **plugin_name,
 	pchat_hook_print (ph, "Focus Window", -1, tray_focus_cb, NULL);
 
 	if (prefs.pchat_gui_tray && !unity_mode ())
+	{
+		g_print("tray_plugin_init: Calling tray_init()\n");
+		fprintf(stderr, "tray_plugin_init: Calling tray_init()\n");
 		tray_init ();
+	}
+	else
+	{
+		g_print("tray_plugin_init: NOT initializing tray (pchat_gui_tray=%d, unity_mode=%d)\n",
+			prefs.pchat_gui_tray, unity_mode());
+		fprintf(stderr, "tray_plugin_init: NOT initializing tray (pchat_gui_tray=%d, unity_mode=%d)\n",
+			prefs.pchat_gui_tray, unity_mode());
+	}
 
 	return 1;       /* return 1 for success */
 }
