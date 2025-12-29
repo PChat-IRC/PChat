@@ -64,6 +64,7 @@
 #include "userlistgui.h"
 #include "menu.h"
 #include "servlistgui.h"
+#include "update-checker.h"
 
 static GSList *submenu_list;
 
@@ -1652,6 +1653,14 @@ about_dialog_openurl (GtkAboutDialog *dialog, char *uri, gpointer data)
 }
 
 static void
+menu_check_updates (GtkWidget *wid, gpointer sess)
+{
+#ifdef HAVE_UPDATE_CHECKER
+	update_checker_check_with_ui (GTK_WINDOW (parent_window));
+#endif
+}
+
+static void
 menu_about (GtkWidget *wid, gpointer sess)
 {
 	GtkAboutDialog *dialog = GTK_ABOUT_DIALOG(gtk_about_dialog_new());
@@ -1791,6 +1800,9 @@ static struct mymenu mymenu[] = {
 
 	{N_("_Help"), 0, 0, M_NEWMENU, 0, 0, 1},	/* 74 */
 	{N_("_Contents"), menu_docs, "help-browser", M_MENUSTOCK, 0, 0, 1, GDK_KEY_F1},
+#ifdef HAVE_UPDATE_CHECKER
+	{N_("Check for _Updates..."), menu_check_updates, NULL, M_MENUITEM, 0, 0, 1},
+#endif
 	{N_("_About"), menu_about, "help-about", M_MENUSTOCK, 0, 0, 1},
 
 	{0, 0, 0, M_END, 0, 0, 0},

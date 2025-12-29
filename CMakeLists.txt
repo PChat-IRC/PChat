@@ -32,6 +32,13 @@ option(ENABLE_LIBPROXY "Enable libproxy support" OFF)
 option(ENABLE_PORTABLE "Build in portable mode (stores config beside executable)" OFF)
 option(ENABLE_WINRT_NOTIFICATIONS "Use WinRT Toast notifications (Windows 8+, requires C++)" ON)
 
+# Built-in update checker (disabled in portable mode)
+if(NOT ENABLE_PORTABLE)
+    option(ENABLE_UPDATE_CHECKER "Enable built-in update checker (Windows/macOS)" ON)
+else()
+    set(ENABLE_UPDATE_CHECKER OFF CACHE BOOL "Update checker disabled in portable mode" FORCE)
+endif()
+
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
@@ -108,6 +115,24 @@ if(APPLE)
     else()
         message(STATUS "gtk-mac-integration not found - install with: brew install gtk-mac-integration")
     endif()
+endif()
+
+# Update checker dependencies (Windows and macOS only, disabled in portable mode)
+if(ENABLE_UPDATE_CHECKER AND (WIN32 OR APPLE))
+    pkg_check_modules(LIBSOUP libsoup-2.4>=2.42)
+    pkg_check_modules(LIBXML2 libxml-2.0>=2.6)
+    
+    if(LIBSOUP_FOUND AND LIBXML2_FOUND)
+        set(HAVE_UPDATE_CHECKER 1)
+        message(STATUS "Update checker enabled (libsoup: ${LIBSOUP_VERSION}, libxml2: ${LIBXML2_VERSION})")
+    else()
+        set(ENABLE_UPDATE_CHECKER OFF)
+        message(WARNING "Update checker disabled - missing dependencies (libsoup-2.4 or libxml-2.0)")
+    endif()
+elseif(ENABLE_PORTABLE)
+    message(STATUS "Update checker disabled (portable mode)")
+else()
+    message(STATUS "Update checker not available on this platform")
 endif()
 
 # Gettext

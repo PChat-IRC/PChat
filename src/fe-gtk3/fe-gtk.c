@@ -48,6 +48,7 @@
 #include "pixmaps.h"
 #include "chanlist.h"
 #include "joind.h"
+#include "update-checker.h"
 #include "textview-chat.h"
 #include "palette.h"
 
@@ -394,6 +395,10 @@ fe_init (void)
 	channelwin_pix = gdk_pixbuf_new_from_file (prefs.pchat_text_background, NULL);
 	input_font_desc = create_input_style_font ();
 	create_input_style_css ();
+	
+	/* Initialize update checker for Windows and macOS */
+	update_checker_init ();
+	
 	DEBUG_LOG("INIT", "fe_init: Frontend initialization complete");
 }
 
@@ -419,6 +424,9 @@ fe_cleanup (void)
 {
 	/* it's saved when pressing OK in setup.c */
 	/*palette_save ();*/
+	
+	/* Cleanup update checker */
+	update_checker_cleanup ();
 }
 
 void

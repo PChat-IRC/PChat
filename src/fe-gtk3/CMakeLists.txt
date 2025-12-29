@@ -98,7 +98,7 @@ else()
         pixmaps.c
         plugin-tray.c
         tray-backend.c
-        tray-linux.c
+        $<IF:$<BOOL:${APPLE}>,tray-macos.m,tray-linux.c>
         ${NOTIFICATION_SOURCES}
         rawlog.c
         servlistgui.c
@@ -109,6 +109,11 @@ else()
         urlgrab.c
         userlistgui.c
     )
+endif()
+
+# Add update checker source if enabled
+if(HAVE_UPDATE_CHECKER)
+    target_sources(pchat PRIVATE update-checker.c)
 endif()
 
 # Windows resource file
@@ -185,6 +190,8 @@ target_include_directories(pchat PRIVATE
     ${GTK3_INCLUDE_DIRS}
     ${GLIB_INCLUDE_DIRS}
     ${APPINDICATOR_INCLUDE_DIRS}
+    ${LIBSOUP_INCLUDE_DIRS}
+    ${LIBXML2_INCLUDE_DIRS}
 )
 
 # Compiler definitions
@@ -197,6 +204,8 @@ target_compile_definitions(pchat PRIVATE
 target_link_directories(pchat PRIVATE
     ${GTK3_LIBRARY_DIRS}
     ${GLIB_LIBRARY_DIRS}
+    ${LIBSOUP_LIBRARY_DIRS}
+    ${LIBXML2_LIBRARY_DIRS}
 )
 
 target_link_libraries(pchat PRIVATE
@@ -204,6 +213,8 @@ target_link_libraries(pchat PRIVATE
     ${GTK3_LIBRARIES}
     ${GLIB_LIBRARIES}
     ${APPINDICATOR_LIBRARIES}
+    ${LIBSOUP_LIBRARIES}
+    ${LIBXML2_LIBRARIES}
 )
 
 # macOS frameworks for native notifications
