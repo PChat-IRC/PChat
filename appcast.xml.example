@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>PChat Updates</title>
+        <link>https://pchat.github.io/appcast.xml</link>
+        <description>Most recent updates to PChat</description>
+        <language>en</language>
+        
+        <!-- Latest Version -->
+        <item>
+            <title>Version 2.16.0</title>
+            <sparkle:version>2.16.0</sparkle:version>
+            <sparkle:releaseNotesLink>https://github.com/PChat-IRC/PChat/releases/tag/v2.16.0</sparkle:releaseNotesLink>
+            <description><![CDATA[
+                <h2>What's New in PChat 2.16.0</h2>
+                <ul>
+                    <li>Fixed memory leaks in network handling</li>
+                    <li>Improved GTK3 theme support</li>
+                    <li>Added built-in update checker for Windows and macOS</li>
+                    <li>Various bug fixes and performance improvements</li>
+                </ul>
+            ]]></description>
+            <pubDate>Sun, 29 Dec 2025 12:00:00 +0000</pubDate>
+            
+            <!-- Windows Download -->
+            <enclosure 
+                url="https://github.com/PChat-IRC/PChat/releases/download/v2.16.0/PChat-2.16.0-Win64.exe"
+                sparkle:version="2.16.0"
+                sparkle:os="windows"
+                length="25165824"
+                type="application/octet-stream"/>
+            
+            <!-- macOS Download -->
+            <enclosure 
+                url="https://github.com/PChat-IRC/PChat/releases/download/v2.16.0/PChat-2.16.0.dmg"
+                sparkle:version="2.16.0"
+                sparkle:os="macos"
+                length="32165824"
+                type="application/octet-stream"/>
+        </item>
+        
+        <!-- Previous Version Example -->
+        <item>
+            <title>Version 2.15.9</title>
+            <sparkle:version>2.15.9</sparkle:version>
+            <sparkle:releaseNotesLink>https://github.com/PChat-IRC/PChat/releases/tag/v2.15.9</sparkle:releaseNotesLink>
+            <description><![CDATA[
+                <h2>What's New in PChat 2.15.9</h2>
+                <ul>
+                    <li>Bug fixes</li>
+                    <li>Security updates</li>
+                </ul>
+            ]]></description>
+            <pubDate>Sun, 15 Dec 2025 12:00:00 +0000</pubDate>
+            
+            <enclosure 
+                url="https://github.com/PChat-IRC/PChat/releases/download/v2.15.9/PChat-2.15.9-Win64.exe"
+                sparkle:version="2.15.9"
+                sparkle:os="windows"
+                length="24165824"
+                type="application/octet-stream"/>
+        </item>
+    </channel>
+</rss>
