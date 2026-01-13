@@ -476,12 +476,15 @@ server_stopconnecting (server * serv)
 static void
 ssl_cb_info (SSL * s, int where, int ret)
 {
-/*	char buf[128];*/
+	/* SSL debug info callback - disabled by default as it's very verbose.
+	 * To enable, uncomment the code below and the EMIT_SIGNAL call.
+	 * Could be made configurable via prefs.pchat_net_ssl_debug in the future.
+	 */
+	(void)s; (void)where; (void)ret;  /* suppress unused parameter warnings */
+	return;
 
-
-	return;							  /* FIXME: make debug level adjustable in serverlist or settings */
-
-/*	g_snprintf (buf, sizeof (buf), "%s (%d)", SSL_state_string_long (s), where);
+/*	char buf[128];
+	g_snprintf (buf, sizeof (buf), "%s (%d)", SSL_state_string_long (s), where);
 	if (g_sess)
 		EMIT_SIGNAL (XP_TE_SSLMESSAGE, g_sess, buf, NULL, NULL, NULL, 0);
 	else
@@ -720,8 +723,8 @@ auto_reconnect (server *serv, int send_quit, int err)
 			s = list->data;
 			if (s->type == SESS_CHANNEL && s->channel[0])
 			{
-				strcpy (s->waitchannel, s->channel);
-				strcpy (s->willjoinchannel, s->channel);
+				g_strlcpy (s->waitchannel, s->channel, CHANLEN);
+				g_strlcpy (s->willjoinchannel, s->channel, CHANLEN);
 			}
 			list = list->next;
 		}
@@ -781,8 +784,9 @@ server_connect_success (server *serv)
 			return;
 		}
 		serv->ssl = _SSL_socket (serv->ctx, serv->sok);
-		/* FIXME: it'll be needed by new servers */
-		/* send(serv->sok, "STLS\r\n", 6, 0); sleep(1); */
+		/* Note: STARTTLS (STLS) support could be added here for servers
+		   that require upgrading a plain connection to TLS. Most modern
+		   servers use dedicated TLS ports instead. */
 		set_nonblocking (serv->sok);
 		serv->ssl_do_connect_tag = fe_timeout_add (SSLDOCONNTMOUT,
 																 ssl_do_connect, serv);
@@ -897,7 +901,7 @@ server_read_child (GIOChannel *source, GIOCondition condition, server *serv)
 		prefs.local_ip = inet_addr (tbuf);
 		break;
 	case '7':						  /* gethostbyname (prefs.pchat_net_bind_host) failed */
-		sprintf (outbuf,
+		g_snprintf (outbuf, sizeof (outbuf),
 					_("Cannot resolve hostname %s\nCheck your IP Settings!\n"),
 					prefs.pchat_net_bind_host);
 		PrintText (sess, outbuf);
@@ -1001,7 +1005,7 @@ server_disconnect (session * sess, int sendquit, int err)
 		notc_msg (sess);
 		return;
 	case 1:							  /* it was in the process of connecting */
-		sprintf (tbuf, "%d", sess->server->childpid);
+		g_snprintf (tbuf, sizeof (tbuf), "%d", sess->server->childpid);
 		EMIT_SIGNAL (XP_TE_STOPCONNECT, sess, tbuf, NULL, NULL, NULL, 0);
 		return;
 	case 3:
@@ -1751,7 +1755,12 @@ server_new (void)
 
 	serv->id = id++;
 	serv->sok = -1;
-	strcpy (serv->nick, prefs.pchat_irc_nick1);
+	g_strlcpy (serv->nick, prefs.pchat_irc_nick1, NICKLEN);
+
+	/* Create hash tables for O(1) session lookups */
+	serv->channels_hash = g_hash_table_new (g_str_hash, g_str_equal);
+	serv->dialogs_hash = g_hash_table_new (g_str_hash, g_str_equal);
+
 	server_set_defaults (serv);
 
 	serv_list = g_slist_prepend (serv_list, serv);
@@ -1945,6 +1954,13 @@ server_free (server *serv)
 
 	if (serv->favlist)
 		g_slist_free_full (serv->favlist, (GDestroyNotify) servlist_favchan_free);
+
+	/* Free session lookup hash tables */
+	if (serv->channels_hash)
+		g_hash_table_destroy (serv->channels_hash);
+	if (serv->dialogs_hash)
+		g_hash_table_destroy (serv->dialogs_hash);
+
 #ifdef USE_OPENSSL
 	if (serv->ctx)
 		_SSL_context_free (serv->ctx);

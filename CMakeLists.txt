@@ -254,9 +254,22 @@ endif()
 message(STATUS "  D-Bus support: ${ENABLE_DBUS}")
 message(STATUS "")
 
-# Windows NSIS installer (custom, not CPack)
+# Windows dependency bundling and NSIS installer
 if(WIN32)
-    # Find NSIS
+    # Configure dependency bundling script (needed for both portable mode and installer)
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/BundleDependencies.cmake.in"
+        "${CMAKE_BINARY_DIR}/BundleDependencies.cmake"
+        @ONLY
+    )
+    
+    # In portable mode, always bundle dependencies during install
+    if(ENABLE_PORTABLE)
+        install(SCRIPT "${CMAKE_BINARY_DIR}/BundleDependencies.cmake")
+        message(STATUS "Portable mode: dependencies will be bundled during install")
+    endif()
+    
+    # Find NSIS for installer
     find_program(NSIS_EXECUTABLE makensis
         PATHS "$ENV{MSYSTEM_PREFIX}/bin"
         DOC "NSIS executable"
@@ -270,15 +283,10 @@ if(WIN32)
             @ONLY
         )
         
-        # Configure dependency bundling script
-        configure_file(
-            "${CMAKE_SOURCE_DIR}/cmake/BundleDependencies.cmake.in"
-            "${CMAKE_BINARY_DIR}/BundleDependencies.cmake"
-            @ONLY
-        )
-        
-        # Run dependency bundling during install
-        install(SCRIPT "${CMAKE_BINARY_DIR}/BundleDependencies.cmake")
+        # Run dependency bundling during install (for non-portable installer builds)
+        if(NOT ENABLE_PORTABLE)
+            install(SCRIPT "${CMAKE_BINARY_DIR}/BundleDependencies.cmake")
+        endif()
         
         # Add custom target to build installer
         add_custom_target(installer
