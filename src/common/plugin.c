@@ -41,7 +41,11 @@
 #include "notify.h"
 #include "text.h"
 #define PLUGIN_C
+/* Define pchat_context only if not already defined */
+#ifndef PCHAT_CONTEXT_DEFINED
+#define PCHAT_CONTEXT_DEFINED
 typedef struct session pchat_context;
+#endif
 #include "pchat-plugin.h"
 #include "plugin.h"
 #include "typedef.h"
@@ -743,14 +747,14 @@ plugin_emit_keypress (session *sess, unsigned int state, unsigned int keyval, gu
 	if (!hook_list)
 		return 0;
 
-	sprintf (keyval_str, "%u", keyval);
-	sprintf (state_str, "%u", state);
+	g_snprintf (keyval_str, sizeof (keyval_str), "%u", keyval);
+	g_snprintf (state_str, sizeof (state_str), "%u", state);
 	if (!key)
 		len = 0;
 	else
 		len = g_unichar_to_utf8 (key, key_str);
 	key_str[len] = '\0';
-	sprintf (len_str, "%d", len);
+	g_snprintf (len_str, sizeof (len_str), "%d", len);
 
 	word[0] = "Key Press";
 	word[1] = keyval_str;
@@ -2055,7 +2059,7 @@ pchat_pluginpref_list (pchat_plugin *pl, char* dest)
 
 	token = g_strdup (pl->name);
 	canonalize_key (token);
-	sprintf (confname, "addon_%s.conf", token);
+	g_snprintf (confname, sizeof (confname), "addon_%s.conf", token);
 	g_free (token);
 
 	fpIn = pchat_fopen_file (confname, "r", 0);
@@ -2066,7 +2070,7 @@ pchat_pluginpref_list (pchat_plugin *pl, char* dest)
 	}
 	else													/* existing config file, get list of settings */
 	{
-		strcpy (dest, "");									/* clean up garbage */
+		dest[0] = '\0';										/* clean up garbage */
 		while (fscanf (fpIn, " %511[^\n]", bufp) != EOF)	/* read whole lines including whitespaces */
 		{
 			token = strtok (buffer, "=");

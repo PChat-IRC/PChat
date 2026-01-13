@@ -190,9 +190,11 @@ void
 fe_set_tab_color (struct session *sess, tabcolor col)
 {
 	struct session *server_sess = sess->server->server_session;
-	if (sess->gui->is_tab && (col == 0 || sess != current_tab))
+	/* Extract color value without flags */
+	tabcolor color_value = col & ~FE_COLOR_ALLFLAGS;
+	if (sess->gui->is_tab && (color_value == FE_COLOR_NONE || sess != current_tab))
 	{
-		switch (col)
+		switch (color_value)
 		{
 		case 0:	/* no particular color (theme default) */
 			sess->tab_state &= ~(TAB_STATE_NEW_DATA | TAB_STATE_NEW_MSG | TAB_STATE_NEW_HILIGHT);
@@ -240,6 +242,9 @@ fe_set_tab_color (struct session *sess, tabcolor col)
 				chan_set_color (chan_get_parent (sess->res->tab), nickseen_list);
 			}
 
+			break;
+		default:
+			/* FE_COLOR_FLAG_NOOVERRIDE and other flags are masked out before switch */
 			break;
 		}
 		lastact_update (sess);
@@ -352,7 +357,7 @@ mg_inputbox_cb (GtkWidget *igad, session_gui *gui)
 	if (sess)
 		handle_multiline (sess, cmd, TRUE, FALSE);
 
-	free (cmd);
+	g_free (cmd);
 }
 
 static gboolean
@@ -667,7 +672,7 @@ mg_restore_label (GtkWidget *label, char **text)
 	if (*text)
 	{
 		gtk_label_set_text (GTK_LABEL (label), *text);
-		free (*text);
+		g_free (*text);
 		*text = NULL;
 	} else
 	{
@@ -681,7 +686,7 @@ mg_restore_entry (GtkWidget *entry, char **text)
 	if (*text)
 	{
 		gtk_entry_set_text (GTK_ENTRY (entry), *text);
-		free (*text);
+		g_free (*text);
 		*text = NULL;
 	} else
 	{
@@ -696,7 +701,7 @@ mg_restore_speller (GtkWidget *entry, char **text)
 	if (*text)
 	{
 		SPELL_ENTRY_SET_TEXT (entry, *text);
-		free (*text);
+		g_free (*text);
 		*text = NULL;
 	} else
 	{
@@ -1386,7 +1391,7 @@ mg_close_gen (chan *ch, GtkWidget *box)
 	char *title = g_object_get_data (G_OBJECT (box), "title");
 
 	if (title)
-		free (title);
+		g_free (title);
 	if (!ch)
 		ch = g_object_get_data (G_OBJECT (box), "ch");
 	if (ch)
@@ -1485,7 +1490,7 @@ mg_color_insert (GtkWidget *item, gpointer userdata)
 		key_action_insert (current_sess->gui->input_box, 0, text, 0, 0);
 	} else
 	{
-		sprintf (buf, "\003%02d", num);
+		g_snprintf (buf, sizeof(buf), "\003%02d", num);
 		key_action_insert (current_sess->gui->input_box, 0, buf, 0, 0);
 	}
 }
@@ -1540,7 +1545,7 @@ mg_create_color_menu (GtkWidget *menu, session *sess)
 
 	for (i = 0; i < 8; i++)
 	{
-		sprintf (buf, "<tt><sup>%02d</sup> <span background=\"#%02x%02x%02x\">"
+		g_snprintf (buf, sizeof(buf), "<tt><sup>%02d</sup> <span background=\"#%02x%02x%02x\">"
 					"   </span></tt>",
 				i, (int)(colors[i].red * 255), (int)(colors[i].green * 255), (int)(colors[i].blue * 255));
 		mg_markup_item (subsubmenu, buf, i);
@@ -1550,7 +1555,7 @@ mg_create_color_menu (GtkWidget *menu, session *sess)
 
 	for (i = 8; i < 16; i++)
 	{
-		sprintf (buf, "<tt><sup>%02d</sup> <span background=\"#%02x%02x%02x\">"
+		g_snprintf (buf, sizeof(buf), "<tt><sup>%02d</sup> <span background=\"#%02x%02x%02x\">"
 					"   </span></tt>",
 				i, (int)(colors[i].red * 255), (int)(colors[i].green * 255), (int)(colors[i].blue * 255));
 		mg_markup_item (subsubmenu, buf, i);
@@ -1727,7 +1732,7 @@ mg_dnd_drop_file (session *sess, char *target, char *uri)
 		if (*p == '\n')
 			p++;
 	}
-	free (data);
+	g_free (data);
 
 }
 
@@ -1902,7 +1907,7 @@ mg_changui_destroy (session *sess)
 		/* it fixes: Gdk-CRITICAL **: gdk_colormap_get_screen: */
 		/*           assertion `GDK_IS_COLORMAP (cmap)' failed */
 		ret = sess->gui->window;
-		free (sess->gui);
+		g_free (sess->gui);
 		sess->gui = NULL;
 	}
 	return ret;
@@ -3600,8 +3605,8 @@ mg_add_generic_tab (char *name, char *title, void *family, GtkWidget *box)
 
 	ch = chanview_add (mg_gui->chanview, name, NULL, box, TRUE, TAG_UTIL, pix_tree_util);
 	chan_set_color (ch, plain_list);
-	/* FIXME: memory leak */
-	g_object_set_data (G_OBJECT (box), "title", g_strdup (title));
+	/* Use g_object_set_data_full to free title string when object is destroyed */
+	g_object_set_data_full (G_OBJECT (box), "title", g_strdup (title), g_free);
 	g_object_set_data (G_OBJECT (box), "ch", ch);
 
 	if (prefs.pchat_gui_tab_newtofront)
@@ -3638,16 +3643,16 @@ fe_clear_channel (session *sess)
 			{
 				/* truncate long channel names */
 				tbuf[0] = '(';
-				strcpy (tbuf + 1, sess->waitchannel);
+				g_strlcpy (tbuf + 1, sess->waitchannel, sizeof (tbuf) - 1);
 				g_utf8_offset_to_pointer(tbuf, prefs.pchat_gui_tab_trunc)[0] = 0;
-				strcat (tbuf, "..)");
+				g_strlcat (tbuf, "..)", sizeof (tbuf));
 			} else
 			{
-				sprintf (tbuf, "(%s)", sess->waitchannel);
+				g_snprintf (tbuf, sizeof (tbuf), "(%s)", sess->waitchannel);
 			}
 		}
 		else
-			strcpy (tbuf, _("<none>"));
+			g_strlcpy (tbuf, _("<none>"), sizeof (tbuf));
 		chan_rename (sess->res->tab, tbuf, prefs.pchat_gui_tab_trunc);
 	}
 
@@ -3664,7 +3669,7 @@ fe_clear_channel (session *sess)
 	{
 		if (sess->res->topic_text)
 		{
-			free (sess->res->topic_text);
+			g_free (sess->res->topic_text);
 			sess->res->topic_text = NULL;
 		}
 	}
@@ -3782,8 +3787,7 @@ mg_changui_new (session *sess, restore_gui *res, int tab, int focus)
 	if (!res)
 	{
 		DEBUG_LOG("GUI", "mg_changui_new: Allocating restore_gui");
-		res = malloc (sizeof (restore_gui));
-		memset (res, 0, sizeof (restore_gui));
+		res = g_new0 (restore_gui, 1);
 	}
 
 	sess->res = res;
@@ -3798,8 +3802,7 @@ mg_changui_new (session *sess, restore_gui *res, int tab, int focus)
 	if (!tab)
 	{
 		DEBUG_LOG("GUI", "mg_changui_new: Creating top window (not tab)");
-		gui = malloc (sizeof (session_gui));
-		memset (gui, 0, sizeof (session_gui));
+		gui = g_new0 (session_gui, 1);
 		gui->is_tab = FALSE;
 		sess->gui = gui;
 		mg_create_topwindow (sess);
@@ -3919,8 +3922,8 @@ mg_set_title (GtkWidget *vbox, char *title) /* for non-irc tab/window only */
 	old = g_object_get_data (G_OBJECT (vbox), "title");
 	if (old)
 	{
-		g_object_set_data (G_OBJECT (vbox), "title", g_strdup (title));
-		free (old);
+		/* g_object_set_data_full will automatically free the old value */
+		g_object_set_data_full (G_OBJECT (vbox), "title", g_strdup (title), g_free);
 	} else
 	{
 		gtk_window_set_title (GTK_WINDOW (vbox), title);
@@ -3938,7 +3941,7 @@ fe_server_callback (server *serv)
 	if (serv->gui->rawlog_window)
 		mg_close_gen (NULL, serv->gui->rawlog_window);
 
-	free (serv->gui);
+	g_free (serv->gui);
 }
 
 /* called when a session is being killed */
@@ -3950,33 +3953,33 @@ fe_session_callback (session *sess)
 		mg_close_gen (NULL, sess->res->banlist->window);
 
 	if (sess->res->input_text)
-		free (sess->res->input_text);
+		g_free (sess->res->input_text);
 
 	if (sess->res->topic_text)
-		free (sess->res->topic_text);
+		g_free (sess->res->topic_text);
 
 	if (sess->res->limit_text)
-		free (sess->res->limit_text);
+		g_free (sess->res->limit_text);
 
 	if (sess->res->key_text)
-		free (sess->res->key_text);
+		g_free (sess->res->key_text);
 
 	if (sess->res->queue_text)
-		free (sess->res->queue_text);
+		g_free (sess->res->queue_text);
 	if (sess->res->queue_tip)
-		free (sess->res->queue_tip);
+		g_free (sess->res->queue_tip);
 
 	if (sess->res->lag_text)
-		free (sess->res->lag_text);
+		g_free (sess->res->lag_text);
 	if (sess->res->lag_tip)
-		free (sess->res->lag_tip);
+		g_free (sess->res->lag_tip);
 
 	if (sess->gui->bartag)
 		fe_timeout_remove (sess->gui->bartag);
 
 	if (sess->gui != &static_mg_gui)
-		free (sess->gui);
-	free (sess->res);
+		g_free (sess->gui);
+	g_free (sess->res);
 }
 
 /* ===== DRAG AND DROP STUFF ===== */

@@ -114,10 +114,10 @@ truncate_tab_name (char *name, int max)
 	if (max > 2 && g_utf8_strlen (name, -1) > max)
 	{
 		/* truncate long channel names */
-		buf = malloc (strlen (name) + 4);
-		strcpy (buf, name);
+		buf = g_malloc (strlen (name) + 4);
+		g_strlcpy (buf, name, strlen (name) + 4);
 		g_utf8_offset_to_pointer (buf, max)[0] = 0;
-		strcat (buf, "..");
+		g_strlcat (buf, "..", strlen (name) + 4);
 		return buf;
 	}
 
@@ -234,7 +234,7 @@ chanview_free_ch (chanview *cv, GtkTreeIter *iter)
 	chan *ch;
 
 	gtk_tree_model_get (GTK_TREE_MODEL (cv->store), iter, COL_CHAN, &ch, -1);
-	free (ch);
+	g_free (ch);
 }
 
 static void
@@ -254,7 +254,7 @@ chanview_destroy (chanview *cv)
 		gtk_widget_destroy (cv->box);
 
 	chanview_destroy_store (cv);
-	free (cv);
+	g_free (cv);
 }
 
 static void
@@ -270,7 +270,7 @@ chanview_new (int type, int trunc_len, gboolean sort, gboolean use_icons,
 {
 	chanview *cv;
 
-	cv = calloc (1, sizeof (chanview));
+	cv = g_new0 (chanview, 1);
 	cv->store = gtk_tree_store_new (4, G_TYPE_STRING, G_TYPE_POINTER,
 											  PANGO_TYPE_ATTR_LIST, GDK_TYPE_PIXBUF);
 	cv->style = style;
@@ -373,7 +373,7 @@ chanview_add_real (chanview *cv, char *name, void *family, void *userdata,
 
 	if (!ch)
 	{
-		ch = calloc (1, sizeof (chan));
+		ch = g_new0 (chan, 1);
 		ch->userdata = userdata;
 		ch->family = family;
 		ch->cv = cv;
@@ -406,7 +406,7 @@ chanview_add (chanview *cv, char *name, void *family, void *userdata, gboolean a
 	ret = chanview_add_real (cv, new_name, family, userdata, allow_closure, tag, icon, NULL, NULL);
 
 	if (new_name != name)
-		free (new_name);
+		g_free (new_name);
 
 	return ret;
 }
@@ -497,7 +497,7 @@ chan_rename (chan *ch, char *name, int trunc_len)
 	ch->cv->trunc_len = trunc_len;
 
 	if (new_name != name)
-		free (new_name);
+		g_free (new_name);
 }
 
 /* this thing is overly complicated */
@@ -650,7 +650,7 @@ chan_remove (chan *ch, gboolean force)
 
 	ch->cv->size--;
 	gtk_tree_store_remove (ch->cv->store, &ch->iter);
-	free (ch);
+	g_free (ch);
 	return TRUE;
 }
 

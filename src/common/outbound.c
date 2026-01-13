@@ -429,7 +429,9 @@ create_mask (session * sess, char *mask, char *mode, char *typestr, int deop)
 
 		mask = user->hostname;
 
-		at = strchr (mask, '@');	/* FIXME: utf8 */
+		/* Note: strchr is safe here since '@' is ASCII and we're searching
+		   in a hostname which should be ASCII-only per IRC protocol */
+		at = strchr (mask, '@');
 		if (!at)
 			return NULL;					  /* can't happen? */
 		*at = 0;
@@ -475,7 +477,7 @@ create_mask (session * sess, char *mask, char *mode, char *typestr, int deop)
 				return NULL;				  /* can't happen? */
 
 			*lastdot = 0;
-			strcpy (domain, fullhost);
+			g_strlcpy (domain, fullhost, sizeof (domain));
 			*lastdot = '.';
 
 			switch (type)
@@ -723,7 +725,7 @@ cmd_country (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 			return TRUE;
 		}
 
-		sprintf (tbuf, "%s = %s\n", code, country (code));
+		g_snprintf (tbuf, TBUFSIZE, "%s = %s\n", code, country (code));
 		PrintText (sess, tbuf);
 		return TRUE;
 	}
@@ -891,7 +893,7 @@ cmd_debug (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	while (list)
 	{
 		s = (struct session *) list->data;
-		sprintf (tbuf, "%p %1x %-10.10s %-10.10s %-10.10s %p\n",
+		g_snprintf (tbuf, TBUFSIZE, "%p %1x %-10.10s %-10.10s %-10.10s %p\n",
 					s, s->type, s->channel, s->waitchannel,
 					s->willjoinchannel, s->server);
 		PrintText (sess, tbuf);
@@ -903,13 +905,13 @@ cmd_debug (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	while (list)
 	{
 		v = (struct server *) list->data;
-		sprintf (tbuf, "%p %-5d %s\n",
+		g_snprintf (tbuf, TBUFSIZE, "%p %-5d %s\n",
 					v, v->sok, v->servername);
 		PrintText (sess, tbuf);
 		list = list->next;
 	}
 
-	sprintf (tbuf,
+	g_snprintf (tbuf, TBUFSIZE,
 				"\nfront_session: %p\n"
 				"current_tab: %p\n\n",
 				sess->server->front_session, current_tab);
@@ -1689,11 +1691,11 @@ exec_handle_colors (char *buf, int len)
 						{
 							colb = escconv[colb % 14];
 							colf = escconv[colf % 14];
-							j += sprintf (&nbuf[j], "\003%d,%02d", colf, colb);
+							j += g_snprintf (&nbuf[j], sizeof(nbuf) - j, "\003%d,%02d", colf, colb);
 						} else
 						{
 							colf = escconv[colf % 14];
-							j += sprintf (&nbuf[j], "\003%02d", colf);
+							j += g_snprintf (&nbuf[j], sizeof(nbuf) - j, "\003%02d", colf);
 						}
 					}
 cont:				esc = FALSE;
@@ -1962,7 +1964,7 @@ cmd_exportconf (struct session *sess, char *tbuf, char *word[], char *word_eol[]
 static int
 cmd_flushq (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 {
-	sprintf (tbuf, "Flushing server send queue, %d bytes.\n", sess->server->sendq_len);
+	g_snprintf (tbuf, TBUFSIZE, "Flushing server send queue, %d bytes.\n", sess->server->sendq_len);
 	PrintText (sess, tbuf);
 	sess->server->flush_queue (sess->server);
 	return TRUE;
@@ -2235,7 +2237,7 @@ show_help_line (session *sess, help_list *hl, char *name, char *usage)
 	if (hl->t == 5)
 	{
 		hl->t = 0;
-		strcat (hl->buf, "\n");
+		g_strlcat (hl->buf, "\n", 4096);
 		PrintText (sess, hl->buf);
 		hl->buf[0] = ' ';
 		hl->buf[1] = ' ';
@@ -2292,7 +2294,7 @@ cmd_help (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 			show_help_line (sess, &hl, xc_cmds[i].name, xc_cmds[i].help);
 			i++;
 		}
-		strcat (buf, "\n");
+		g_strlcat (buf, "\n", 4096);
 		PrintText (sess, buf);
 
 		PrintTextf (sess, "\n%s\n\n", _("User defined commands:"));
@@ -2308,7 +2310,7 @@ cmd_help (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 			show_help_line (sess, &hl, pop->name, pop->cmd);
 			list = list->next;
 		}
-		strcat (buf, "\n");
+		g_strlcat (buf, "\n", 4096);
 		PrintText (sess, buf);
 
 		PrintTextf (sess, "\n%s\n\n", _("Plugin defined commands:"));
@@ -2318,7 +2320,7 @@ cmd_help (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 		hl.t = 0;
 		hl.i = 0;
 		plugin_command_foreach (sess, &hl, (void *)show_help_line);
-		strcat (buf, "\n");
+		g_strlcat (buf, "\n", 4096);
 		PrintText (sess, buf);
 		g_free (buf);
 
@@ -2409,7 +2411,7 @@ cmd_ignore (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 			type |= IG_DCC;
 		else
 		{
-			sprintf (tbuf, _("Unknown arg '%s' ignored."), word[i]);
+			g_snprintf (tbuf, TBUFSIZE, _("Unknown arg '%s' ignored."), word[i]);
 			PrintText (sess, tbuf);
 		}
 		i++;
@@ -2648,7 +2650,7 @@ cmd_load (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 		return TRUE;
 	}
 
-	sprintf (tbuf, "Unknown file type %s. Maybe you need to install the Perl or Python plugin?\n", word[2]);
+	g_snprintf (tbuf, TBUFSIZE, "Unknown file type %s. Maybe you need to install the Perl or Python plugin?\n", word[2]);
 	PrintText (sess, tbuf);
 #endif
 
@@ -3365,10 +3367,10 @@ cmd_settab (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 {
 	if (*word_eol[2])
 	{
-		strcpy (tbuf, sess->channel);
+		g_strlcpy (tbuf, sess->channel, TBUFSIZE);
 		safe_strcpy (sess->channel, word_eol[2], CHANLEN);
 		fe_set_channel (sess);
-		strcpy (sess->channel, tbuf);
+		g_strlcpy (sess->channel, tbuf, CHANLEN);
 	}
 
 	return TRUE;
@@ -3876,17 +3878,17 @@ wallchop_cb (struct User *user, multidata *data)
 	if (user->op)
 	{
 		if (data->i)
-			strcat (data->tbuf, ",");
-		strcat (data->tbuf, user->nick);
+			g_strlcat (data->tbuf, ",", TBUFSIZE);
+		g_strlcat (data->tbuf, user->nick, TBUFSIZE);
 		data->i++;
 	}
 	if (data->i == 5)
 	{
 		data->i = 0;
-		sprintf (data->tbuf + strlen (data->tbuf),
+		g_snprintf (data->tbuf + strlen (data->tbuf), TBUFSIZE - strlen (data->tbuf),
 					" :[@%s] %s", data->sess->channel, data->reason);
 		data->sess->server->p_raw (data->sess->server, data->tbuf);
-		strcpy (data->tbuf, "NOTICE ");
+		g_strlcpy (data->tbuf, "NOTICE ", TBUFSIZE);
 	}
 
 	return TRUE;
@@ -3901,7 +3903,7 @@ cmd_wallchop (struct session *sess, char *tbuf, char *word[],
 	if (!(*word_eol[2]))
 		return FALSE;
 
-	strcpy (tbuf, "NOTICE ");
+	g_strlcpy (tbuf, "NOTICE ", TBUFSIZE);
 
 	data.reason = word_eol[2];
 	data.tbuf = tbuf;
@@ -3911,7 +3913,7 @@ cmd_wallchop (struct session *sess, char *tbuf, char *word[],
 
 	if (data.i)
 	{
-		sprintf (tbuf + strlen (tbuf),
+		g_snprintf (tbuf + strlen (tbuf), TBUFSIZE - strlen (tbuf),
 					" :[@%s] %s", sess->channel, word_eol[2]);
 		sess->server->p_raw (sess->server, tbuf);
 	}
@@ -4360,7 +4362,7 @@ auto_insert (char *dest, gsize destlen, unsigned char *src, char *word[],
 				{
 					if ((dest - orig) + strlen (utf) >= destlen)
 						return 2;
-					strcpy (dest, utf);
+					g_strlcpy (dest, utf, destlen - (dest - orig));
 					dest += strlen (dest);
 				}
 
@@ -4479,7 +4481,7 @@ check_special_chars (char *cmd, int do_ascii) /* check for %X */
 	}
 	buf[i] = 0;
 	if (occur)
-		strcpy (cmd, buf);
+		g_strlcpy (cmd, buf, 2048);
 	g_free (buf);
 }
 
@@ -4554,7 +4556,7 @@ perform_nick_completion (struct session *sess, char *cmd, char *tbuf)
 		}
 	}
 
-	strcpy (tbuf, cmd);
+	g_strlcpy (tbuf, cmd, TBUFSIZE);
 }
 
 static void

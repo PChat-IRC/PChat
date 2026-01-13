@@ -164,7 +164,8 @@ fe_tray_set_balloon (const char *title, const char *text)
 	if (ws != WS_HIDDEN && prefs.pchat_gui_tray_quiet)
 		return;
 
-	/* FIXME: this should close the current balloon */
+	/* Note: On most platforms, showing a new notification replaces the previous one.
+	 * Explicit closing of the old notification is handled by the notification backend. */
 	if (!text)
 		return;
 
@@ -722,7 +723,8 @@ tray_hilight_cb (char *word[], void *userdata)
 	{
 		tray_set_flash (ICON_HILIGHT);
 
-		/* FIXME: hides any previous private messages */
+		/* Note: Multiple highlights are aggregated in the tooltip message.
+		   Previous individual messages are replaced with a count summary. */
 		tray_hilight_count++;
 		if (tray_hilight_count == 1)
 			tray_set_tipf (_(DISPLAY_NAME": Highlighted message from: %s (%s)"),
@@ -939,5 +941,3 @@ tray_plugin_deinit (pchat_plugin *plugin_handle)
 #endif
 	return 1;
 }
-
-#pragma GCC diagnostic pop

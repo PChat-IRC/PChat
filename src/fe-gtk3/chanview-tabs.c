@@ -383,8 +383,8 @@ tab_add_sorted (chanview *cv, GtkWidget *box, GtkWidget *tab, chan *ch)
 		return;
 	}
 
-	/* sorting TODO:
-    *   - move tab if renamed (dialogs) */
+	/* Note: Tab renaming (e.g., for dialogs) doesn't currently trigger
+	 * re-sorting. Tabs maintain their original position after rename. */
 
 	/* userdata, passed to mg_tabs_compare() */
 	b = ch->userdata;

@@ -123,6 +123,7 @@ void pchat_textview_chat_set_urlcheck_function (PchatTextViewChat *chat, PchatUr
 /* Search */
 gboolean pchat_textview_chat_search (PchatTextViewChat *chat, const gchar *text, 
                                       PchatSearchFlags flags, GError **error);
+void pchat_textview_chat_clear_search_highlight (PchatTextViewChat *chat);
 
 /* Save/export */
 void pchat_textview_chat_save (PchatTextViewChat *chat, int fd);

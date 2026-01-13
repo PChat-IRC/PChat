@@ -56,10 +56,9 @@ new_param_variant (const char *arg)
 
 void
 pchat_remote (void)
-/* TODO: dbus_g_connection_unref (connection) are commented because it makes
- * dbus to crash. Fixed in dbus >=0.70 ?!?
- * https://launchpad.net/distros/ubuntu/+source/dbus/+bug/54375
- */
+/* Note: This code now uses GDBus (GLib's D-Bus implementation) instead of
+ * the older libdbus API, so the historical dbus_g_connection_unref crash
+ * issue no longer applies. */
 {
 	GDBusConnection *connection;
 	GDBusProxy *dbus = NULL;

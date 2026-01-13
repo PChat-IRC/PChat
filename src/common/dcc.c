@@ -519,7 +519,7 @@ dcc_chat_line (struct DCC *dcc, char *line)
 	if (!sess)
 		sess = dcc->serv->front_session;
 
-	sprintf (portbuf, "%d", dcc->port);
+	g_snprintf (portbuf, sizeof (portbuf), "%d", dcc->port);
 
 	word[0] = "DCC Chat Text";
 	word[1] = net_ip (dcc->addr);
@@ -589,7 +589,7 @@ dcc_read_chat (GIOChannel *source, GIOCondition condition, struct DCC *dcc)
 				if (would_block ())
 					return TRUE;
 			}
-			sprintf (portbuf, "%d", dcc->port);
+			g_snprintf (portbuf, sizeof (portbuf), "%d", dcc->port);
 			EMIT_SIGNAL (XP_TE_DCCCHATF, dcc->serv->front_session, dcc->nick,
 							 net_ip (dcc->addr), portbuf,
 							 errorstring ((len < 0) ? sock_error () : 0), 0);
@@ -762,7 +762,7 @@ dcc_read (GIOChannel *source, GIOCondition condition, struct DCC *dcc)
 			dcc_close (dcc, STAT_DONE, FALSE);
 			dcc_calc_average_cps (dcc);	/* this must be done _after_ dcc_close, or dcc_remove_from_sum will see the wrong value in dcc->cps */
 			/* cppcheck-suppress deallocuse */
-			sprintf (buf, "%" G_GINT64_FORMAT, dcc->cps);
+			g_snprintf (buf, sizeof (buf), "%" G_GINT64_FORMAT, dcc->cps);
 			EMIT_SIGNAL (XP_TE_DCCRECVCOMP, dcc->serv->front_session,
 							 dcc->file, dcc->destfile, dcc->nick, buf, 0);
 			return TRUE;
@@ -1498,7 +1498,7 @@ dcc_handle_new_ack (struct DCC *dcc)
 		dcc_close (dcc, STAT_DONE, FALSE);
 		dcc_calc_average_cps (dcc);	/* this must be done _after_ dcc_close, or dcc_remove_from_sum will see the wrong value in dcc->cps */
 		/* cppcheck-suppress deallocuse */
-		sprintf (buf, "%" G_GINT64_FORMAT, dcc->cps);
+		g_snprintf (buf, sizeof (buf), "%" G_GINT64_FORMAT, dcc->cps);
 		EMIT_SIGNAL (XP_TE_DCCSENDCOMP, dcc->serv->front_session,
 						 file_part (dcc->file), dcc->nick, buf, NULL, 0);
 		done = TRUE;
@@ -2346,7 +2346,7 @@ dcc_resume (struct DCC *dcc)
 					  dcc->file, dcc->port, dcc->resumable);
 
 		if (dcc->pasvid)
- 			sprintf (tbuf + strlen (tbuf), " %d", dcc->pasvid);
+ 			g_snprintf (tbuf + strlen (tbuf), sizeof (tbuf) - strlen (tbuf), " %d", dcc->pasvid);
 
 		dcc->serv->p_ctcp (dcc->serv, dcc->nick, tbuf);
 		return 1;
@@ -2490,7 +2490,7 @@ dcc_add_file (session *sess, char *file, guint64 size, int port, char *nick, gui
 		} else
 			fe_dcc_add (dcc);
 	}
-	sprintf (tbuf, "%" G_GUINT64_FORMAT, size);
+	g_snprintf (tbuf, sizeof (tbuf), "%" G_GUINT64_FORMAT, size);
 	g_snprintf (tbuf + 24, 300, "%s:%d", net_ip (addr), port);
 	EMIT_SIGNAL (XP_TE_DCCSENDOFFER, sess->server->front_session, nick,
 					 file, tbuf, tbuf + 24, 0);
@@ -2595,7 +2595,7 @@ handle_dcc (struct session *sess, char *nick, char *word[], char *word_eol[],
 
 				dcc->serv->p_ctcp (dcc->serv, dcc->nick, tbuf);
 			}
-			sprintf (tbuf, "%" G_GUINT64_FORMAT, dcc->pos);
+			g_snprintf (tbuf, sizeof (tbuf), "%" G_GUINT64_FORMAT, dcc->pos);
 			EMIT_SIGNAL_TIMESTAMP (XP_TE_DCCRESUMEREQUEST, sess, nick,
 										  file_part (dcc->file), tbuf, NULL, 0,
 										  tags_data->timestamp);

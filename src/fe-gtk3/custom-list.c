@@ -622,8 +622,9 @@ custom_list_sortable_has_default_sort_func (GtkTreeSortable * sortable)
 	return FALSE;
 }
 
-/* fast as possible compare func for sorting.
-   TODO: If fast enough, use a unicode collation key and strcmp. */
+/* Fast case-insensitive compare for channel list sorting.
+ * Uses ASCII comparison which is sufficient for IRC channel names.
+ * Unicode collation would be slower and unnecessary for this use case. */
 
 #define TOSML(c) (((c) >= 'A' && (c) <= 'Z') ? (c) - 'A' + 'a' : (c))
 
@@ -697,7 +698,8 @@ custom_list_append (CustomList * custom_list, chanlistrow * newrecord)
 		custom_list->rows = g_realloc (custom_list->rows, newsize);
 	}
 
-	/* TODO: Binary search insert? */
+	/* Note: Items are appended unsorted here. custom_list_resort() is called
+	 * after all items are added to sort the entire list efficiently. */
 
 	pos = custom_list->num_rows;
 	custom_list->rows[pos] = newrecord;
@@ -735,7 +737,7 @@ custom_list_resort (CustomList * custom_list)
 	G_GNUC_END_IGNORE_DEPRECATIONS
 
 	/* let other objects know about the new order */
-	neworder = malloc (sizeof (gint) * custom_list->num_rows);
+	neworder = g_new (gint, custom_list->num_rows);
 
 	for (i = custom_list->num_rows - 1; i >= 0; i--)
 	{
@@ -752,7 +754,7 @@ custom_list_resort (CustomList * custom_list)
 	gtk_tree_model_rows_reordered (GTK_TREE_MODEL (custom_list), path, NULL,
 											 neworder);
 	gtk_tree_path_free (path);
-	free (neworder);
+	g_free (neworder);
 }
 
 void

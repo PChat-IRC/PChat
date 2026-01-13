@@ -153,9 +153,10 @@ broke_oneline (char *oneline, char *parray[])
 
 
 /*
-    FIXME: Master-Key, Extensions, CA bits
-	    (openssl x509 -text -in servcert.pem)
-*/
+ * Get certificate information from SSL connection.
+ * Note: Additional fields like Master-Key, Extensions, and CA bits
+ * could be added in the future (see: openssl x509 -text -in cert.pem)
+ */
 int
 _SSL_get_cert_info (struct cert_info *cert_info, SSL * ssl)
 {

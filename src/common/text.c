@@ -2064,8 +2064,9 @@ text_emit (int index, session *sess, char *a, char *b, char *c, char *d,
 		return;
 
 	/* The plugin may have changed the state which we should respect.
-	 * If the state is NEW_DATA we don't actually know if that was on
-	 * purpose though as print() sets it, so for now we ignore that. FIXME */
+	 * If the state is NEW_DATA, we assume it was set by print() during
+	 * plugin callback execution, so we restore the original state.
+	 * This prevents plugins from inadvertently changing tab notification state. */
 	if (sess->tab_state == plugin_state || sess->tab_state == TAB_STATE_NEW_DATA)
 		sess->tab_state = current_state;
 

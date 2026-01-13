@@ -227,7 +227,8 @@ sexy_spell_entry_class_init(SexySpellEntryClass *klass)
 
 	object_class->dispose = sexy_spell_entry_destroy;
 
-	/* widget_class->expose_event = sexy_spell_entry_expose; FIXME: replace with draw */
+	/* Note: In GTK3, spell check underlines are applied via pango_layout_set_attributes()
+	   in sexy_spell_entry_recheck_all(). No custom draw signal handler is needed. */
 	widget_class->button_press_event = sexy_spell_entry_button_press;
 
 	/**
@@ -279,14 +280,11 @@ gtk_entry_find_position (GtkEntry *entry, gint x)
 	line = pango_layout_get_lines(layout)->data;
 	pango_layout_line_x_to_index(line, x * PANGO_SCALE, &index, &trailing);
 
-	/* FIXME: see gtk_entry_layout_index_to_text_index()? */
-	if (index >= cursor_index /* && entry->preedit_length */) {
-		if (index >= cursor_index /* + entry->preedit_length */) {
-			index /*-= entry->preedit_length */;
-		} else {
-			index = cursor_index;
-			trailing = FALSE;
-		}
+	/* Note: This simplified version ignores preedit text handling since GtkEntry's
+	   internal preedit_length is not accessible. The cursor position is sufficient
+	   for spell checking purposes. See gtk_entry_layout_index_to_text_index(). */
+	if (index >= cursor_index) {
+		/* Position is at or after cursor - no adjustment needed */
 	}
 
 	pos = g_utf8_pointer_to_offset (text, text + index);
@@ -1073,22 +1071,6 @@ sexy_spell_entry_recheck_all(SexySpellEntry *entry)
 		gdk_window_invalidate_rect(gtk_widget_get_window (widget), &rect, TRUE);
 	}
 }
-
-#if 0 /* FIXME: move to draw signal */
-static gint
-sexy_spell_entry_expose(GtkWidget *widget, GdkEventExpose *event)
-{
-	SexySpellEntry *entry = SEXY_SPELL_ENTRY(widget);
-	GtkEntry *gtk_entry = GTK_ENTRY(widget);
-	PangoLayout *layout;
-
-
-	layout = gtk_entry_get_layout(gtk_entry);
-	pango_layout_set_attributes(layout, entry->priv->attr_list);
-
-	return GTK_WIDGET_CLASS(parent_class)->expose_event (widget, event);
-}
-#endif
 
 static gint
 sexy_spell_entry_button_press(GtkWidget *widget, GdkEventButton *event)

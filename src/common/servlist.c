@@ -404,12 +404,12 @@ servlist_connect (session *sess, ircnet *net, gboolean join)
 
 	if (net->flags & FLAG_USE_GLOBAL)
 	{
-		strcpy (serv->nick, prefs.pchat_irc_nick1);
+		g_strlcpy (serv->nick, prefs.pchat_irc_nick1, NICKLEN);
 	}
 	else
 	{
 		if (net->nick)
-			strcpy (serv->nick, net->nick);
+			g_strlcpy (serv->nick, net->nick, NICKLEN);
 	}
 
 	serv->dont_use_proxy = (net->flags & FLAG_USE_PROXY) ? FALSE : TRUE;
@@ -1025,15 +1025,11 @@ servlist_load (void)
 			case 'D':
 				net->selected = atoi (buf + 2);
 				break;
-			/* FIXME Migration code. In 2.9.5 the order was:
-			 *
-			 * P=serverpass, A=saslpass, B=nickservpass
-			 *
-			 * So if server password was unset, we can safely use SASL
-			 * password for our new universal password, or if that's also
-			 * unset, use NickServ password.
-			 *
-			 * Should be removed at some point.
+			/* Migration code from version 2.9.5:
+			 * Old format: P=serverpass, A=saslpass, B=nickservpass
+			 * If server password was unset, use SASL password for the
+			 * universal password, or NickServ password as fallback.
+			 * This ensures old configs work with the new unified password field.
 			 */
 			case 'A':
 				if (!net->pass)

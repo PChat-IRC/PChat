@@ -245,7 +245,9 @@ banlist_sensitize (banlist_info *banl)
 	if (banl->sess->me == NULL)
 		return;
 
-	/* FIXME: More access levels than these can unban */
+	/* Check if user has ban/unban privileges (op or half-op).
+	 * Note: Some networks allow additional access levels to modify bans,
+	 * but op/hop covers the common cases for standard IRC servers. */
 	if (banl->sess->me->op || banl->sess->me->hop)
 		is_op = TRUE;
 

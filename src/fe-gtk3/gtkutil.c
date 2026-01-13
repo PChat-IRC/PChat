@@ -65,7 +65,7 @@ static void
 gtkutil_file_req_destroy (GtkWidget * wid, struct file_req *freq)
 {
 	freq->callback (freq->userdata, NULL);
-	free (freq);
+	g_free (freq);
 }
 
 static void
@@ -228,7 +228,7 @@ gtkutil_file_req (const char *title, void *callback, void *userdata, char *filte
 
 	gtk_file_chooser_add_shortcut_folder (GTK_FILE_CHOOSER (dialog), get_xdir (), NULL);
 
-	freq = malloc (sizeof (struct file_req));
+	freq = g_new (struct file_req, 1);
 	freq->dialog = dialog;
 	freq->flags = flags;
 	freq->callback = callback;
@@ -539,12 +539,12 @@ show_and_unfocus (GtkWidget * wid)
 void
 gtkutil_set_icon (GtkWidget *win)
 {
-#ifndef _WIN32
-	/* FIXME: Magically breaks icon rendering in most
-	 * (sub)windows, but OFC only on Windows. GTK <3
-	 */
-	gtk_window_set_icon (GTK_WINDOW (win), pix_xchat);
-#endif
+	/* On all platforms, we now use gtk_window_set_default_icon() in fe_init()
+	   which sets the icon for all windows automatically. This function is
+	   kept for backwards compatibility but does nothing since the default
+	   icon handles all cases correctly, including on Windows where per-window
+	   icon setting was causing rendering issues. */
+	(void)win; /* suppress unused parameter warning */
 }
 
 extern GtkWidget *parent_window;	/* maingui.c */

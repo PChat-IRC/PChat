@@ -632,7 +632,7 @@ static const setting identd_settings[] =
 #define setup_get_int3(pr,off) *(((int *)pr)+off)
 
 #define setup_set_int(pr,set,num) *((int *)pr+set->offset)=num
-#define setup_set_str(pr,set,str) strcpy(((char *)pr)+set->offset,str)
+#define setup_set_str(pr,set,str) g_strlcpy(((char *)pr)+set->offset,str,set->extra ? set->extra : 256)
 
 
 static void
@@ -977,7 +977,7 @@ setup_id_menu_cb (GtkWidget *item, char *dest)
 {
 	int n = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (item), "n"));
 
-	strcpy (dest, id_strings[n]);
+	g_strlcpy (dest, id_strings[n], 64);
 }
 
 static void
@@ -1496,10 +1496,10 @@ setup_create_color_button (GtkWidget *table, int num, int row, int col)
 	char buf[64];
 
 	if (num > 31)
-		strcpy (buf, "<span size=\"x-small\"> </span>");
+		g_strlcpy (buf, "<span size=\"x-small\"> </span>", sizeof(buf));
 	else
 						/* 12345678901 23456789 01  23456789 */
-		sprintf (buf, "<span size=\"x-small\">%d</span>", num);
+		g_snprintf (buf, sizeof(buf), "<span size=\"x-small\">%d</span>", num);
 	but = gtk_button_new_with_label (" ");
 	gtk_label_set_markup (GTK_LABEL (gtk_bin_get_child (GTK_BIN (but))), buf);
 	/* win32 build uses this to turn off themeing */
@@ -1756,7 +1756,7 @@ setup_snd_changed_cb (GtkEntry *ent, GtkTreeView *tree)
 
 	/* get the new sound file */
 	if (sound_files[n])
-		free (sound_files[n]);
+		g_free (sound_files[n]);
 	sound_files[n] = g_strdup (gtk_entry_get_text (GTK_ENTRY (ent)));
 
 	/* update the TreeView list */
@@ -2284,23 +2284,22 @@ setup_apply (struct pchatprefs *pr)
 #ifdef _WIN32
 	/* merge pchat_font_main and pchat_font_alternative into pchat_font_normal */
 	old_desc = pango_font_description_from_string (prefs.pchat_text_font_main);
-	sprintf (buffer, "%s,%s", pango_font_description_get_family (old_desc), prefs.pchat_text_font_alternative);
+	g_snprintf (buffer, sizeof(buffer), "%s,%s", pango_font_description_get_family (old_desc), prefs.pchat_text_font_alternative);
 	new_desc = pango_font_description_from_string (buffer);
 	pango_font_description_set_weight (new_desc, pango_font_description_get_weight (old_desc));
 	pango_font_description_set_style (new_desc, pango_font_description_get_style (old_desc));
 	pango_font_description_set_size (new_desc, pango_font_description_get_size (old_desc));
-	sprintf (prefs.pchat_text_font, "%s", pango_font_description_to_string (new_desc));
+	g_snprintf (prefs.pchat_text_font, sizeof(prefs.pchat_text_font), "%s", pango_font_description_to_string (new_desc));
 
-	/* FIXME this is not required after pango_font_description_from_string()
-	g_free (old_desc);
-	g_free (new_desc);
-	*/
+	/* Free pango font descriptions - use pango_font_description_free, not g_free */
+	pango_font_description_free (old_desc);
+	pango_font_description_free (new_desc);
 #endif
 
 	if (prefs.pchat_irc_real_name[0] == 0)
 	{
 		fe_message (_("The Real name option cannot be left blank. Falling back to \"realname\"."), FE_MSG_WARN);
-		strcpy (prefs.pchat_irc_real_name, "realname");
+		g_strlcpy (prefs.pchat_irc_real_name, "realname", sizeof(prefs.pchat_irc_real_name));
 	}
 
 	setup_apply_real (new_pix, do_ulist, do_layout);

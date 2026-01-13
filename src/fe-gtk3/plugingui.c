@@ -24,7 +24,11 @@
 
 #include "../common/pchat.h"
 #define PLUGIN_C
+/* Define pchat_context only if not already defined */
+#ifndef PCHAT_CONTEXT_DEFINED
+#define PCHAT_CONTEXT_DEFINED
 typedef struct session pchat_context;
+#endif
 #include "../common/pchat-plugin.h"
 #include "../common/plugin.h"
 #include "../common/util.h"
@@ -142,14 +146,14 @@ plugingui_load_cb (session *sess, char *file)
 {
 	if (file)
 	{
-		char *buf = malloc (strlen (file) + 9);
+		char *buf;
 
 		if (strchr (file, ' '))
-			sprintf (buf, "LOAD \"%s\"", file);
+			buf = g_strdup_printf ("LOAD \"%s\"", file);
 		else
-			sprintf (buf, "LOAD %s", file);
+			buf = g_strdup_printf ("LOAD %s", file);
 		handle_command (sess, buf, FALSE);
-		free (buf);
+		g_free (buf);
 	}
 }
 
@@ -210,13 +214,13 @@ plugingui_unload (GtkWidget * wid, gpointer unused)
 	} else
 	{
 		/* let python.so or perl.so handle it */
-		buf = malloc (strlen (file) + 10);
+		char *buf;
 		if (strchr (file, ' '))
-			sprintf (buf, "UNLOAD \"%s\"", file);
+			buf = g_strdup_printf ("UNLOAD \"%s\"", file);
 		else
-			sprintf (buf, "UNLOAD %s", file);
+			buf = g_strdup_printf ("UNLOAD %s", file);
 		handle_command (current_sess, buf, FALSE);
-		free (buf);
+		g_free (buf);
 	}
 
 	g_free (modname);
@@ -230,14 +234,14 @@ plugingui_reloadbutton_cb (GtkWidget *wid, GtkTreeView *view)
 
 	if (file)
 	{
-		char *buf = malloc (strlen (file) + 9);
+		char *buf;
 
 		if (strchr (file, ' '))
-			sprintf (buf, "RELOAD \"%s\"", file);
+			buf = g_strdup_printf ("RELOAD \"%s\"", file);
 		else
-			sprintf (buf, "RELOAD %s", file);
+			buf = g_strdup_printf ("RELOAD %s", file);
 		handle_command (current_sess, buf, FALSE);
-		free (buf);
+		g_free (buf);
 		g_free (file);
 	}
 }

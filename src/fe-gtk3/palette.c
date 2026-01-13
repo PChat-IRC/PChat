@@ -157,7 +157,7 @@ palette_load (void)
 	if (fh != -1)
 	{
 		fstat (fh, &st);
-		cfg = malloc (st.st_size + 1);
+		cfg = g_malloc (st.st_size + 1);
 		if (cfg)
 		{
 			cfg[0] = '\0';
@@ -218,7 +218,7 @@ palette_load (void)
 					colors[i+16] = colors[i];
 				}
 			}
-			free (cfg);
+			g_free (cfg);
 		}
 		close (fh);
 	}

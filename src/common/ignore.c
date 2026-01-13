@@ -113,6 +113,7 @@ ignore_showlist (session *sess)
 	struct ignore *ig;
 	GSList *list = ignore_list;
 	char tbuf[256];
+	char *pos;
 	int i = 0;
 
 	EMIT_SIGNAL (XP_TE_IGNOREHEADER, sess, 0, 0, 0, 0, 0);
@@ -122,36 +123,32 @@ ignore_showlist (session *sess)
 		ig = list->data;
 		i++;
 
-		g_snprintf (tbuf, sizeof (tbuf), " %-25s ", ig->mask);
-		if (ig->type & IG_PRIV)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		if (ig->type & IG_NOTI)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		if (ig->type & IG_CHAN)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		if (ig->type & IG_CTCP)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		if (ig->type & IG_DCC)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		if (ig->type & IG_INVI)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		if (ig->type & IG_UNIG)
-			strcat (tbuf, _("YES  "));
-		else
-			strcat (tbuf, _("NO   "));
-		strcat (tbuf, "\n");
+		/* Use tracked position to avoid strcat rescanning the buffer each time */
+		pos = tbuf + g_snprintf (tbuf, sizeof (tbuf), " %-25s ", ig->mask);
+
+		/* Each column is 5 chars ("YES  " or "NO   ") */
+		#define APPEND_YESNO(flag) do { \
+			if (ig->type & (flag)) { \
+				memcpy (pos, _("YES  "), 5); \
+			} else { \
+				memcpy (pos, _("NO   "), 5); \
+			} \
+			pos += 5; \
+		} while (0)
+
+		APPEND_YESNO(IG_PRIV);
+		APPEND_YESNO(IG_NOTI);
+		APPEND_YESNO(IG_CHAN);
+		APPEND_YESNO(IG_CTCP);
+		APPEND_YESNO(IG_DCC);
+		APPEND_YESNO(IG_INVI);
+		APPEND_YESNO(IG_UNIG);
+
+		#undef APPEND_YESNO
+
+		*pos++ = '\n';
+		*pos = '\0';
+
 		PrintText (sess, tbuf);
 		/*EMIT_SIGNAL (XP_TE_IGNORELIST, sess, ig->mask, 0, 0, 0, 0); */
 		/* use this later, when TE's support 7 args */
@@ -198,29 +195,16 @@ ignore_del (char *mask, struct ignore *ig)
 }
 
 /* check if a msg should be ignored by browsing our ignore list */
+/* Optimized: single-pass check instead of two iterations */
 
 int
 ignore_check (char *host, int type)
 {
 	struct ignore *ig;
 	GSList *list = ignore_list;
+	struct ignore *matched_ignore = NULL;
 
-	/* check if there's an UNIGNORE first, they take precendance. */
-	while (list)
-	{
-		ig = (struct ignore *) list->data;
-		if (ig->type & IG_UNIG)
-		{
-			if (ig->type & type)
-			{
-				if (match (ig->mask, host))
-					return FALSE;
-			}
-		}
-		list = list->next;
-	}
-
-	list = ignore_list;
+	/* Single pass: find matching ignore, but UNIGNORE takes precedence */
 	while (list)
 	{
 		ig = (struct ignore *) list->data;
@@ -229,22 +213,34 @@ ignore_check (char *host, int type)
 		{
 			if (match (ig->mask, host))
 			{
-				ignored_total++;
-				if (type & IG_PRIV)
-					ignored_priv++;
-				if (type & IG_NOTI)
-					ignored_noti++;
-				if (type & IG_CHAN)
-					ignored_chan++;
-				if (type & IG_CTCP)
-					ignored_ctcp++;
-				if (type & IG_INVI)
-					ignored_invi++;
-				fe_ignore_update (2);
-				return TRUE;
+				/* UNIGNORE entries take precedence - return immediately */
+				if (ig->type & IG_UNIG)
+					return FALSE;
+
+				/* Remember the first matching ignore entry */
+				if (!matched_ignore)
+					matched_ignore = ig;
 			}
 		}
 		list = list->next;
+	}
+
+	/* If we found a matching ignore (and no UNIGNORE matched), count it */
+	if (matched_ignore)
+	{
+		ignored_total++;
+		if (type & IG_PRIV)
+			ignored_priv++;
+		if (type & IG_NOTI)
+			ignored_noti++;
+		if (type & IG_CHAN)
+			ignored_chan++;
+		if (type & IG_CTCP)
+			ignored_ctcp++;
+		if (type & IG_INVI)
+			ignored_invi++;
+		fe_ignore_update (2);
+		return TRUE;
 	}
 
 	return FALSE;

@@ -140,7 +140,7 @@ nick_command_parse (session *sess, char *cmd, char *nick, char *allnick)
 
 	/* this can't overflow, since popup->cmd is only 256 */
 	len = strlen (cmd) + strlen (nick) + strlen (allnick) + 512;
-	buf = malloc (len);
+	buf = g_malloc (len);
 
 	auto_insert (buf, len, cmd, 0, 0, allnick, sess->channel, "",
 					 server_get_network (sess->server, TRUE), host,
@@ -148,7 +148,7 @@ nick_command_parse (session *sess, char *cmd, char *nick, char *allnick)
 
 	nick_command (sess, buf);
 
-	free (buf);
+	g_free (buf);
 }
 
 /* userlist button has been clicked */
@@ -169,7 +169,7 @@ userlist_button_cb (GtkWidget * button, char *cmd)
 	if (sess->type == SESS_DIALOG)
 	{
 		/* fake a selection */
-		nicks = malloc (sizeof (char *) * 2);
+		nicks = g_malloc (sizeof (char *) * 2);
 		nicks[0] = g_strdup (sess->channel);
 		nicks[1] = NULL;
 		num_sel = 1;
@@ -185,15 +185,16 @@ userlist_button_cb (GtkWidget * button, char *cmd)
 	}
 
 	/* create "allnicks" string */
-	allnicks = malloc (((NICKLEN + 1) * num_sel) + 1);
+	size_t allnicks_size = ((NICKLEN + 1) * num_sel) + 1;
+	allnicks = g_malloc (allnicks_size);
 	*allnicks = 0;
 
 	i = 0;
 	while (nicks[i])
 	{
 		if (i > 0)
-			strcat (allnicks, " ");
-		strcat (allnicks, nicks[i]);
+			g_strlcat (allnicks, " ", allnicks_size);
+		g_strlcat (allnicks, nicks[i], allnicks_size);
 
 		if (!nick)
 			nick = nicks[0];
@@ -218,8 +219,8 @@ userlist_button_cb (GtkWidget * button, char *cmd)
 		g_free (nicks[num_sel]);
 	}
 
-	free (nicks);
-	free (allnicks);
+	g_free (nicks);
+	g_free (allnicks);
 }
 
 /* a popup-menu-item has been selected */
@@ -720,7 +721,7 @@ menu_nickmenu (session *sess, GdkEventButton *event, char *nick, int num_sel)
 	GtkWidget *submenu, *menu = gtk_menu_new ();
 
 	if (str_copy)
-		free (str_copy);
+		g_free (str_copy);
 	str_copy = g_strdup (nick);
 
 	submenu_list = 0;	/* first time through, might not be 0 */
@@ -937,7 +938,7 @@ menu_urlmenu (GdkEventButton *event, char *url)
 	char *tmp, *chop;
 
 	if (str_copy)
-		free (str_copy);
+		g_free (str_copy);
 	str_copy = g_strdup (url);
 
 	menu = gtk_menu_new ();
@@ -949,7 +950,7 @@ menu_urlmenu (GdkEventButton *event, char *url)
 		chop[0] = chop[1] = chop[2] = '.';
 		chop[3] = 0;
 		menu_quick_item (0, tmp, menu, XCMENU_SHADED, 0, 0);
-		free (tmp);
+		g_free (tmp);
 	} else
 	{
 		menu_quick_item (0, str_copy, menu, XCMENU_SHADED, 0, 0);
@@ -1015,7 +1016,7 @@ menu_chanmenu (struct session *sess, GdkEventButton * event, char *chan)
 		is_joined = TRUE;
 
 	if (str_copy)
-		free (str_copy);
+		g_free (str_copy);
 	str_copy = g_strdup (chan);
 
 	menu = gtk_menu_new ();
@@ -1063,7 +1064,7 @@ menu_addfavoritemenu (server *serv, GtkWidget *menu, char *channel, gboolean ist
 	if (channel != str_copy)
 	{
 		if (str_copy)
-			free (str_copy);
+			g_free (str_copy);
 		str_copy = g_strdup (channel);
 	}
 

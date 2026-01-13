@@ -416,12 +416,13 @@ typedef struct session
 	int lastact_idx;		/* the sess_list_by_lastact[] index of the list we're in.
 							 * For valid values, see defines of LACT_*. */
 
-	int ignore_date:1;
-	int ignore_mode:1;
-	int ignore_names:1;
-	int end_of_names:1;
-	int doing_who:1;		/* /who sent on this channel */
-	int done_away_check:1;	/* done checking for away status changes */
+	/* Boolean flags - use unsigned to avoid truncation warnings with TRUE */
+	unsigned int ignore_date:1;
+	unsigned int ignore_mode:1;
+	unsigned int ignore_names:1;
+	unsigned int end_of_names:1;
+	unsigned int doing_who:1;		/* /who sent on this channel */
+	unsigned int done_away_check:1;	/* done checking for away status changes */
 	tab_state_flags tab_state;
 	tab_state_flags last_tab_state; /* before event is handled */
 	gtk_xtext_search_flags lastlog_flags;
@@ -550,6 +551,10 @@ typedef struct server
 	GIConv write_converter; /* iconv converter for converting from UTF-8 to server encoding. */
 
 	GSList *favlist;			/* list of channels & keys to join */
+
+	/* Hash tables for O(1) session lookups (optimization) */
+	GHashTable *channels_hash;	/* channel name -> session */
+	GHashTable *dialogs_hash;	/* nick -> session */
 
 	unsigned int motd_skipped:1;
 	unsigned int connected:1;

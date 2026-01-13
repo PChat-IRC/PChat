@@ -190,9 +190,18 @@ is_session (session * sess)
 session *
 find_dialog (server *serv, char *nick)
 {
-	GSList *list = sess_list;
 	session *sess;
 
+	/* Try O(1) hash table lookup first */
+	if (serv->dialogs_hash)
+	{
+		sess = g_hash_table_lookup (serv->dialogs_hash, nick);
+		if (sess && sess->type == SESS_DIALOG)
+			return sess;
+	}
+
+	/* Fall back to linear search (handles case sensitivity differences) */
+	GSList *list = sess_list;
 	while (list)
 	{
 		sess = list->data;
@@ -210,6 +219,16 @@ session *
 find_channel (server *serv, char *chan)
 {
 	session *sess;
+
+	/* Try O(1) hash table lookup first */
+	if (serv->channels_hash)
+	{
+		sess = g_hash_table_lookup (serv->channels_hash, chan);
+		if (sess && sess->type == SESS_CHANNEL)
+			return sess;
+	}
+
+	/* Fall back to linear search (handles case sensitivity differences) */
 	GSList *list = sess_list;
 	while (list)
 	{
@@ -263,7 +282,7 @@ lag_check (void)
 			lag = now - serv->ping_recv;
 			if (prefs.pchat_net_ping_timeout != 0 && lag > prefs.pchat_net_ping_timeout && lag > 0)
 			{
-				sprintf (tbuf, "%" G_GINT64_FORMAT, (gint64) lag);
+				g_snprintf (tbuf, sizeof (tbuf), "%" G_GINT64_FORMAT, (gint64) lag);
 				EMIT_SIGNAL (XP_TE_PINGTIMEOUT, serv->server_session, tbuf, NULL,
 								 NULL, NULL, 0);
 				if (prefs.pchat_net_auto_reconnect)
@@ -502,6 +521,12 @@ session_new (server *serv, char *from, int type, int focus)
 	{
 		safe_strcpy(sess->channel, from, CHANLEN);
 		safe_strcpy(sess->session_name, from, CHANLEN);
+
+		/* Add to server's hash table for O(1) lookup */
+		if (type == SESS_CHANNEL && serv->channels_hash)
+			g_hash_table_insert (serv->channels_hash, sess->channel, sess);
+		else if (type == SESS_DIALOG && serv->dialogs_hash)
+			g_hash_table_insert (serv->dialogs_hash, sess->channel, sess);
 	}
 
 	sess_list = g_slist_prepend (sess_list, sess);
@@ -661,6 +686,12 @@ session_free (session *killsess)
 		killserv->server_session = killserv->front_session;
 
 	sess_list = g_slist_remove (sess_list, killsess);
+
+	/* Remove from server's hash table */
+	if (killsess->type == SESS_CHANNEL && killserv->channels_hash)
+		g_hash_table_remove (killserv->channels_hash, killsess->channel);
+	else if (killsess->type == SESS_DIALOG && killserv->dialogs_hash)
+		g_hash_table_remove (killserv->dialogs_hash, killsess->channel);
 
 	if (killsess->type == SESS_CHANNEL)
 		userlist_free (killsess);
@@ -1020,12 +1051,12 @@ set_locale (void)
 #ifdef WIN32
 	char pchat_lang[13];	/* LC_ALL= plus 5 chars of pchat_gui_lang and trailing \0 */
 
-	strcpy (pchat_lang, "LC_ALL=");
+	g_strlcpy (pchat_lang, "LC_ALL=", sizeof (pchat_lang));
 
 	if (0 <= prefs.pchat_gui_lang && prefs.pchat_gui_lang < LANGUAGES_LENGTH)
-		strcat (pchat_lang, languages[prefs.pchat_gui_lang]);
+		g_strlcat (pchat_lang, languages[prefs.pchat_gui_lang], sizeof (pchat_lang));
 	else
-		strcat (pchat_lang, "en");
+		g_strlcat (pchat_lang, "en", sizeof (pchat_lang));
 
 	putenv (pchat_lang);
 #endif

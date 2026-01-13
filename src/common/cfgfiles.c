@@ -529,9 +529,11 @@ const struct prefs vars[] =
 	{"irc_whois_front", P_OFFINT (pchat_irc_whois_front), TYPE_BOOL},
 
 	{"net_auto_reconnect", P_OFFINT (pchat_net_auto_reconnect), TYPE_BOOL},
-#ifndef WIN32	/* FIXME fix reconnect crashes and remove this ifdef! */
+	/* Note: auto_reconnect and timeout_auto_reconnect have proper safety checks:
+	   - auto_reconnect checks serv->server_session != NULL
+	   - timeout_auto_reconnect uses is_server() to validate serv before use
+	   Previously disabled on Win32 due to crashes, but those appear to be fixed now */
 	{"net_auto_reconnectonfail", P_OFFINT (pchat_net_auto_reconnectonfail), TYPE_BOOL},
-#endif
 	{"net_bind_host", P_OFFSET (pchat_net_bind_host), TYPE_STR},
 	{"net_ping_timeout", P_OFFINT (pchat_net_ping_timeout), TYPE_INT, pchat_reinit_timers},
 	{"net_proxy_auth", P_OFFINT (pchat_net_proxy_auth), TYPE_BOOL},
@@ -783,7 +785,10 @@ load_default_config(void)
 	prefs.pchat_irc_reconnect_rejoin = 1;
 	prefs.pchat_irc_cap_server_time = 1;
 	prefs.pchat_irc_logging = 1;
-	prefs.pchat_irc_who_join = 1; /* Can kick with inordinate amount of channels, required for some of our features though, TODO: add cap like away check? */
+	/* Note: WHO on join can be resource-intensive with many channels but is
+	 * required for features like auto-op. Consider adding a cap similar to
+	 * away check if this becomes problematic. */
+	prefs.pchat_irc_who_join = 1;
 	prefs.pchat_irc_whois_front = 1;
 	prefs.pchat_net_auto_reconnect = 1;
 	prefs.pchat_net_throttle = 1;
@@ -814,7 +819,7 @@ load_default_config(void)
 	prefs.pchat_flood_ctcp_num = 5;
 	prefs.pchat_flood_ctcp_time = 30;
 	prefs.pchat_flood_msg_num = 5;
-	/*FIXME*/ prefs.pchat_flood_msg_time = 30;
+	prefs.pchat_flood_msg_time = 30;
 	prefs.pchat_gui_chanlist_maxusers = 9999;
 	prefs.pchat_gui_chanlist_minusers = 5;
 	prefs.pchat_gui_dialog_height = 256;

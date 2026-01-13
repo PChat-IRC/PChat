@@ -109,13 +109,13 @@ send_channel_modes (session *sess, char *tbuf, char *word[], int wpos,
 			tbuf[len] = mode;
 			len++;
 		}
-		tbuf[len] = 0;	/* null terminate for the strcat() to work */
+		tbuf[len] = 0;	/* null terminate for the g_strlcat() to work */
 
 		/* add all the nicknames */
 		for (i = 0; i < usable_modes; i++)
 		{
-			strcat (tbuf, " ");
-			strcat (tbuf, word[wpos + i]);
+			g_strlcat (tbuf, " ", 512);
+			g_strlcat (tbuf, word[wpos + i], 512);
 		}
 		serv->p_mode (serv, sess->channel, tbuf);
 
@@ -375,8 +375,8 @@ mode_cat (char *str, char *addition)
 	{
 		len = strlen (str) + strlen (addition) + 2;
 		str = g_realloc (str, len);
-		strcat (str, " ");
-		strcat (str, addition);
+		g_strlcat (str, " ", len);
+		g_strlcat (str, addition, len);
 	}
 	else
 	{

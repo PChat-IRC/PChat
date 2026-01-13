@@ -218,7 +218,7 @@ tree_grow (tree *t)
 	{
 		int new_size = t->array_size + ARRAY_GROW;
 
-		t->array = realloc (t->array, sizeof (void *) * new_size);
+		t->array = g_realloc (t->array, sizeof (void *) * new_size);
 		t->array_size = new_size;
 	}
 

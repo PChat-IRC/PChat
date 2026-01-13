@@ -159,7 +159,6 @@ static char *query_wmi (QueryWmiType type)
 	IWbemServices *namespace = NULL;
 	IUnknown *namespaceUnknown = NULL;
 	IEnumWbemClassObject *enumerator = NULL;
-	int i;
 	gboolean atleast_one_appended = FALSE;
 
 	hr = CoCreateInstance (&CLSID_WbemLocator, 0, CLSCTX_INPROC_SERVER, &IID_IWbemLocator, (LPVOID *) &locator);
@@ -216,7 +215,7 @@ static char *query_wmi (QueryWmiType type)
 
 	result = g_string_new ("");
 
-	for (i = 0;; i++)
+	for (;;)
 	{
 		ULONG numReturned = 0;
 		IWbemClassObject *object;

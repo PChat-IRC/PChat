@@ -81,7 +81,7 @@ fe_new_window (struct session *sess, int focus)
 {
 	char buf[512];
 
-	sess->gui = malloc (4);
+	sess->gui = g_malloc (4);
 	current_sess = sess;
 
 	if (!sess->server->front_session)
@@ -128,16 +128,18 @@ get_stamp_str (time_t tim, char *dest, int size)
 }
 
 static int
-timecat (char *buf, time_t stamp)
+timecat (char *buf, size_t bufsize, time_t stamp)
 {
 	char stampbuf[64];
+	size_t current_len;
 
 	/* set the stamp to the current time if not provided */
 	if (!stamp)
 		stamp = time (0);
 
 	get_stamp_str (stamp, stampbuf, sizeof (stampbuf));
-	strcat (buf, stampbuf);
+	current_len = strlen (buf);
+	g_strlcat (buf, stampbuf, bufsize);
 	return strlen (stampbuf);
 }
 
@@ -154,12 +156,13 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 	char num[8];
 	int reverse = 0, under = 0, bold = 0,
 		comma, k, i = 0, j = 0, len = strlen (text);
-	unsigned char *newtext = malloc (len + 1024);
+	size_t bufsize = len + 1024;
+	unsigned char *newtext = g_malloc (bufsize);
 
 	if (prefs.pchat_stamp_text)
 	{
 		newtext[0] = 0;
-		j += timecat (newtext, stamp);
+		j += timecat ((char *)newtext, bufsize, stamp);
 	}
 	while (i < len)
 	{
@@ -167,7 +170,7 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 		{
 			dotime = FALSE;
 			newtext[j] = 0;
-			j += timecat (newtext, stamp);
+			j += timecat ((char *)newtext, bufsize, stamp);
 		}
 		switch (text[i])
 		{
@@ -241,37 +244,43 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 			if (reverse)
 			{
 				reverse = FALSE;
-				strcpy (&newtext[j], "\033[27m");
+				memcpy (&newtext[j], "\033[27m", 5);
+				newtext[j + 5] = '\0';
 			} else
 			{
 				reverse = TRUE;
-				strcpy (&newtext[j], "\033[7m");
+				memcpy (&newtext[j], "\033[7m", 4);
+				newtext[j + 4] = '\0';
 			}
-			j = strlen (newtext);
+			j = strlen ((char *)newtext);
 			break;
 		case '\037':				  /* underline */
 			if (under)
 			{
 				under = FALSE;
-				strcpy (&newtext[j], "\033[24m");
+				memcpy (&newtext[j], "\033[24m", 5);
+				newtext[j + 5] = '\0';
 			} else
 			{
 				under = TRUE;
-				strcpy (&newtext[j], "\033[4m");
+				memcpy (&newtext[j], "\033[4m", 4);
+				newtext[j + 4] = '\0';
 			}
-			j = strlen (newtext);
+			j = strlen ((char *)newtext);
 			break;
 		case '\002':				  /* bold */
 			if (bold)
 			{
 				bold = FALSE;
-				strcpy (&newtext[j], "\033[22m");
+				memcpy (&newtext[j], "\033[22m", 5);
+				newtext[j + 5] = '\0';
 			} else
 			{
 				bold = TRUE;
-				strcpy (&newtext[j], "\033[1m");
+				memcpy (&newtext[j], "\033[1m", 4);
+				newtext[j + 4] = '\0';
 			}
-			j = strlen (newtext);
+			j = strlen ((char *)newtext);
 			break;
 		case '\007':
 			if (!prefs.pchat_input_filter_beep)
@@ -281,7 +290,8 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 			}
 			break;
 		case '\017':				  /* reset all */
-			strcpy (&newtext[j], "\033[m");
+			memcpy (&newtext[j], "\033[m", 3);
+			newtext[j + 3] = '\0';
 			j += 3;
 			reverse = FALSE;
 			bold = FALSE;
@@ -311,7 +321,7 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 
 	newtext[j] = 0;
 	write (STDOUT_FILENO, newtext, j);
-	free (newtext);
+	g_free (newtext);
 }
 #else
 /* The win32 version for cmd.exe */
@@ -321,13 +331,13 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 {
 	int dotime = FALSE;
 	int comma, k, i = 0, j = 0, len = strlen (text);
-
-	unsigned char *newtext = malloc (len + 1024);
+	size_t bufsize = len + 1024;
+	unsigned char *newtext = g_malloc (bufsize);
 
 	if (prefs.pchat_stamp_text)
 	{
 		newtext[0] = 0;
-		j += timecat (newtext, stamp);
+		j += timecat ((char *)newtext, bufsize, stamp);
 	}
 	while (i < len)
 	{
@@ -335,7 +345,7 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 		{
 			dotime = FALSE;
 			newtext[j] = 0;
-			j += timecat (newtext, stamp);
+			j += timecat ((char *)newtext, bufsize, stamp);
 		}
 		switch (text[i])
 		{
@@ -406,7 +416,7 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 
 	newtext[j] = 0;
 	write (STDOUT_FILENO, newtext, j);
-	free (newtext);
+	g_free (newtext);
 }
 #endif
 
@@ -518,7 +528,7 @@ fe_args (int argc, char *argv[])
 			*sl = 0;
 			printf ("%s\\plugins\n", exe);
 		}
-		free (exe);
+		g_free (exe);
 #else
 		printf ("%s\n", XCHATLIBDIR);
 #endif
@@ -586,7 +596,7 @@ fe_exit (void)
 void
 fe_new_server (struct server *serv)
 {
-	serv->gui = malloc (4);
+	serv->gui = g_malloc (4);
 }
 
 void

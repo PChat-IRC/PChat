@@ -255,7 +255,7 @@ fe_args (int argc, char *argv[])
 			*sl = 0;
 			chdir (tmp);
 		}
-		free (tmp);
+		g_free (tmp);
 	}
 #endif
 
@@ -272,6 +272,7 @@ fe_args (int argc, char *argv[])
 		{
 			char *share_path = g_build_filename(exe_path, "share", NULL);
 			char *lib_path = g_build_filename(exe_path, "lib", NULL);
+			char *schema_path = g_build_filename(share_path, "glib-2.0", "schemas", NULL);
 			
 			/* Set environment variables for GTK to find its resources */
 			g_setenv("GTK_DATA_PREFIX", exe_path, TRUE);
@@ -279,20 +280,22 @@ fe_args (int argc, char *argv[])
 			g_setenv("GTK_EXE_PREFIX", exe_path, TRUE);
 			g_setenv("GTK_PATH", lib_path, TRUE);
 			
+			/* Set GSettings schema path for file chooser and other GTK widgets */
+			g_setenv("GSETTINGS_SCHEMA_DIR", schema_path, FALSE);
+			
 			/* Force software rendering to avoid graphics driver issues */
 			g_setenv("GDK_RENDERING", "image", TRUE);
 			g_setenv("GSK_RENDERER", "cairo", TRUE);
 			
-			/* Enable verbose debugging */
+			/* Enable verbose debugging - but don't make warnings fatal */
 			g_setenv("G_MESSAGES_DEBUG", "all", TRUE);
-			g_setenv("GTK_DEBUG", "all", TRUE);
-			g_setenv("GDK_DEBUG", "all", TRUE);
-			g_setenv("G_DEBUG", "fatal-warnings", TRUE);
+			/* Note: Removed G_DEBUG=fatal-warnings as it causes SIGTRAP on benign GSettings warnings */
 			
 			DEBUG_LOG("INIT", "Set GTK paths - exe: %s", exe_path);
+			DEBUG_LOG("INIT", "Set GSETTINGS_SCHEMA_DIR: %s", schema_path);
 			DEBUG_LOG("INIT", "Forced software rendering (GDK_RENDERING=image, GSK_RENDERER=cairo)");
-			DEBUG_LOG("INIT", "Enabled GTK debugging");
 			
+			g_free(schema_path);
 			g_free(share_path);
 			g_free(lib_path);
 			g_free(exe_path);
@@ -388,6 +391,11 @@ fe_init (void)
 	palette_load ();
 	key_init ();
 	pixmaps_init ();
+
+	/* Set default icon for all windows - this works better on Windows
+	   than setting icon per-window which can cause rendering issues */
+	if (pix_xchat)
+		gtk_window_set_default_icon (pix_xchat);
 
 #ifdef HAVE_GTK_MAC
 	gtkosx_application_set_dock_icon_pixbuf (osx_app, pix_xchat);
@@ -524,6 +532,7 @@ fe_new_window (session *sess, int focus)
 	g_log_set_handler ("GLib-GObject", G_LOG_LEVEL_CRITICAL|G_LOG_LEVEL_WARNING, (GLogFunc)log_handler, 0);
 	g_log_set_handler ("Gdk", G_LOG_LEVEL_CRITICAL|G_LOG_LEVEL_WARNING, (GLogFunc)log_handler, 0);
 	g_log_set_handler ("Gtk", G_LOG_LEVEL_CRITICAL|G_LOG_LEVEL_WARNING, (GLogFunc)log_handler, 0);
+	g_log_set_handler ("GLib-GIO", G_LOG_LEVEL_CRITICAL|G_LOG_LEVEL_WARNING, (GLogFunc)log_handler, 0);
 	DEBUG_LOG("WINDOW", "fe_new_window: Log handlers set");
 #endif
 
@@ -540,8 +549,7 @@ fe_new_window (session *sess, int focus)
 void
 fe_new_server (struct server *serv)
 {
-	serv->gui = malloc (sizeof (struct server_gui));
-	memset (serv->gui, 0, sizeof (struct server_gui));
+	serv->gui = g_new0 (struct server_gui, 1);
 }
 
 void
@@ -630,7 +638,7 @@ fe_set_topic (session *sess, char *topic, char *stripped_topic)
 	{
 		if (sess->res->topic_text)
 		{
-			free (sess->res->topic_text);
+			g_free (sess->res->topic_text);
 		}
 
 		if (prefs.pchat_text_stripcolor_topic)
@@ -666,7 +674,7 @@ fe_update_mode_entry (session *sess, GtkWidget *entry, char **text, char *new_te
 		if (sess->gui->is_tab)
 		{
 			if (*text)
-				free (*text);
+				g_free (*text);
 			*text = g_strdup (new_text);
 		}
 	}
@@ -685,7 +693,7 @@ fe_update_channel_limit (struct session *sess)
 {
 	char tmp[16];
 
-	sprintf (tmp, "%d", sess->limit);
+	g_snprintf (tmp, sizeof (tmp), "%d", sess->limit);
 	fe_update_mode_entry (sess, sess->gui->limit_entry,
 								 &sess->res->limit_text, tmp);
 	fe_set_title (sess);
@@ -870,7 +878,7 @@ fe_set_lag (server *serv, long lag)
 		if (sess->server == serv)
 		{
 			if (sess->res->lag_tip)
-				free (sess->res->lag_tip);
+				g_free (sess->res->lag_tip);
 			sess->res->lag_tip = g_strdup (lagtip);
 
 			if (!sess->gui->is_tab || current_tab == sess)
@@ -886,7 +894,7 @@ fe_set_lag (server *serv, long lag)
 			{
 				sess->res->lag_value = per;
 				if (sess->res->lag_text)
-					free (sess->res->lag_text);
+					g_free (sess->res->lag_text);
 				sess->res->lag_text = g_strdup (lagtext);
 			}
 		}
@@ -916,7 +924,7 @@ fe_set_throttle (server *serv)
 			snprintf (tip, sizeof (tip) - 1, _("Network send queue: %d bytes"), serv->sendq_len);
 
 			if (sess->res->queue_tip)
-				free (sess->res->queue_tip);
+				g_free (sess->res->queue_tip);
 			sess->res->queue_tip = g_strdup (tip);
 
 			if (!sess->gui->is_tab || current_tab == sess)
@@ -932,7 +940,7 @@ fe_set_throttle (server *serv)
 			{
 				sess->res->queue_value = per;
 				if (sess->res->queue_text)
-					free (sess->res->queue_text);
+					g_free (sess->res->queue_text);
 				sess->res->queue_text = g_strdup (tbuf);
 			}
 		}
@@ -1087,7 +1095,7 @@ fe_set_inputbox_contents (session *sess, char *text)
 	} else
 	{
 		if (sess->res->input_text)
-			free (sess->res->input_text);
+			g_free (sess->res->input_text);
 		sess->res->input_text = g_strdup (text);
 	}
 }

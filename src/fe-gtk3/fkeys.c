@@ -66,8 +66,9 @@ void key_action_tab_clean (void);
    To add a new action:
    1) inc KEY_MAX_ACTIONS
    2) write the function at the bottom of this file (with all the others)
-   FIXME: Write about calling and returning
    3) Add it to key_actions
+   
+   Action handlers return TRUE to stop event propagation, FALSE otherwise.
 
    --AGL
 
@@ -527,8 +528,7 @@ key_dialog_save (GtkWidget *wid, gpointer userdata)
 		keybind_list = NULL;
 	}
 
-	/* FIXME: unselect current cell */
-	//gtk_tree_selection_unselect_all (gtk_tree_view_get_selection (view));
+	/* Note: Selection is automatically cleared when the model is rebuilt */
 
 	if (gtk_tree_model_get_iter_first (GTK_TREE_MODEL (store), &iter))
 	{
@@ -754,8 +754,8 @@ key_dialog_show ()
 	gtk_text_view_set_wrap_mode (GTK_TEXT_VIEW (xtext), GTK_WRAP_WORD);
 	gtk_widget_set_size_request (xtext, -1, 100);
 	gtk_box_pack_start (GTK_BOX (vbox), xtext, FALSE, TRUE, 2);
-	/* Set font using CSS */
-	if (prefs.pchat_text_font && strlen(prefs.pchat_text_font) > 0) {
+	/* Set font using CSS - check if font string is non-empty */
+	if (prefs.pchat_text_font[0] != '\0') {
 		PangoFontDescription *font_desc = pango_font_description_from_string(prefs.pchat_text_font);
 		char *css_font = pango_font_description_to_css(font_desc);
 		char css[512];
@@ -910,7 +910,7 @@ key_load_kbs (void)
 			return 1;
 		}
 
-		ibuf = malloc (st.st_size);
+		ibuf = g_malloc (st.st_size);
 		read (fd, ibuf, st.st_size);
 		size = st.st_size;
 		close (fd);
@@ -957,7 +957,7 @@ key_load_kbs (void)
 			keyval = gdk_keyval_from_name (buf);
 			if (keyval == 0)
 			{
-				free (ibuf);
+				g_free (ibuf);
 				return 2;
 			}
 
@@ -973,7 +973,7 @@ key_load_kbs (void)
 
 			if (kb->action == KEY_MAX_ACTIONS + 1)
 			{
-				free (ibuf);
+				g_free (ibuf);
 				return 3;
 			}
 
@@ -990,7 +990,7 @@ key_load_kbs (void)
 
 			if (buf[0] != 'D')
 			{
-				free (ibuf);
+				g_free (ibuf);
 				return 4;
 			}
 
@@ -1044,12 +1044,12 @@ key_load_kbs (void)
 			continue;
 		}
 	}
-	free (ibuf);
+	g_free (ibuf);
 	return 0;
 
 corrupt_file:
-	free (ibuf);
-	free (kb);
+	g_free (ibuf);
+	g_free (kb);
 	return 5;
 }
 
@@ -1555,7 +1555,7 @@ key_action_tab_comp (GtkWidget *t, GdkEventKey *entry, char *d1, char *d2,
 		}
 		else
 		{
-			strcpy(old_gcomp.data, ent);
+			g_strlcpy(old_gcomp.data, ent, sizeof(old_gcomp.data));
 			old_gcomp.elen = elen;
 
 			/* Get the first nick and put out the data for future nickcompletes */
@@ -1573,13 +1573,13 @@ key_action_tab_comp (GtkWidget *t, GdkEventKey *entry, char *d1, char *d2,
 					{
 						if (prefix_len)
 							g_utf8_strncpy (buf, text, prefix_len);
-						strncat (buf, result, COMP_BUF - prefix_len);
+						g_strlcat (buf, result, COMP_BUF);
 						cursor_pos = strlen (buf);
 						g_free(result);
 						if (postfix)
 						{
-							strcat (buf, " ");
-							strncat (buf, postfix, COMP_BUF - cursor_pos -1);
+							g_strlcat (buf, " ", COMP_BUF);
+							g_strlcat (buf, postfix, COMP_BUF);
 						}
 						SPELL_ENTRY_SET_TEXT (t, buf);
 						SPELL_ENTRY_SET_POS (t, g_utf8_pointer_to_offset(buf, buf + cursor_pos));
@@ -1597,8 +1597,8 @@ key_action_tab_comp (GtkWidget *t, GdkEventKey *entry, char *d1, char *d2,
 							buf[0] = 0;
 							len = 0;
 						}
-						strcpy (buf + len, (char *) list->data);
-						strcpy (buf + len + elen, " ");
+						g_strlcpy (buf + len, (char *) list->data, COMP_BUF - len);
+						g_strlcat (buf, " ", COMP_BUF);
 						list = list->next;
 					}
 					PrintText (sess, buf);
@@ -1616,13 +1616,13 @@ key_action_tab_comp (GtkWidget *t, GdkEventKey *entry, char *d1, char *d2,
 	{
 		if (prefix_len)
 			g_utf8_strncpy(buf, text, prefix_len);
-		strncat (buf, result, COMP_BUF - (prefix_len + 3)); /* make sure nicksuffix and space fits */
+		g_strlcat (buf, result, COMP_BUF - 3); /* make sure nicksuffix and space fits */
 		if(!prefix_len && is_nick)
-			strcat (buf, &prefs.pchat_completion_suffix[0]);
-		strcat (buf, " ");
+			g_strlcat (buf, &prefs.pchat_completion_suffix[0], COMP_BUF);
+		g_strlcat (buf, " ", COMP_BUF);
 		cursor_pos = strlen (buf);
 		if (postfix)
-			strncat (buf, postfix, COMP_BUF - cursor_pos - 2);
+			g_strlcat (buf, postfix, COMP_BUF);
 		SPELL_ENTRY_SET_TEXT (t, buf);
 		SPELL_ENTRY_SET_POS (t, g_utf8_pointer_to_offset(buf, buf + cursor_pos));
 	}
@@ -1743,7 +1743,7 @@ replace_handle (GtkWidget *t)
 	{
 		if (strlen (postfix_pnt) > sizeof (postfix) - 12)
 			return;
-		strcpy (postfix, postfix_pnt);
+		g_strlcpy (postfix, postfix_pnt, sizeof (postfix));
 	}
 	while (list)
 	{
@@ -1756,7 +1756,7 @@ replace_handle (GtkWidget *t)
 				snprintf (word, sizeof (word), "%s", pop->cmd);
 			else
 				snprintf (word, sizeof (word), "%s%s", pop->cmd, postfix);
-			strcat (outbuf, word);
+			g_strlcat (outbuf, word, sizeof (outbuf));
 			SPELL_ENTRY_SET_TEXT (t, outbuf);
 			SPELL_ENTRY_SET_POS (t, -1);
 			return;

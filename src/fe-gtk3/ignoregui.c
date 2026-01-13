@@ -321,7 +321,7 @@ ignore_stats_entry (GtkWidget * box, char *label, int value)
 	GtkWidget *wid;
 	char buf[16];
 
-	sprintf (buf, "%d", value);
+	g_snprintf (buf, sizeof(buf), "%d", value);
 	gtkutil_label_new (label, box);
 	wid = gtkutil_entry_new (16, box, 0, 0);
 	gtk_widget_set_size_request (wid, 30, -1);
@@ -432,19 +432,19 @@ fe_ignore_update (int level)
 
 	if (level == 2 && ignorewin)
 	{
-		sprintf (buf, "%d", ignored_ctcp);
+		g_snprintf (buf, sizeof(buf), "%d", ignored_ctcp);
 		gtk_entry_set_text (GTK_ENTRY (num_ctcp), buf);
 
-		sprintf (buf, "%d", ignored_noti);
+		g_snprintf (buf, sizeof(buf), "%d", ignored_noti);
 		gtk_entry_set_text (GTK_ENTRY (num_noti), buf);
 
-		sprintf (buf, "%d", ignored_chan);
+		g_snprintf (buf, sizeof(buf), "%d", ignored_chan);
 		gtk_entry_set_text (GTK_ENTRY (num_chan), buf);
 
-		sprintf (buf, "%d", ignored_invi);
+		g_snprintf (buf, sizeof(buf), "%d", ignored_invi);
 		gtk_entry_set_text (GTK_ENTRY (num_invi), buf);
 
-		sprintf (buf, "%d", ignored_priv);
+		g_snprintf (buf, sizeof(buf), "%d", ignored_priv);
 		gtk_entry_set_text (GTK_ENTRY (num_priv), buf);
 	}
 }

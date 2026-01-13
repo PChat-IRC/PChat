@@ -96,7 +96,7 @@ ascii_enter (GtkWidget * wid, GdkEventCrossing *event, GtkWidget *label)
 
 	text = gtk_button_get_label (GTK_BUTTON (wid));
 	u = g_utf8_get_char (text);
-	sprintf (buf, "%s U+%04X", text, u);
+	g_snprintf (buf, sizeof (buf), "%s U+%04X", text, u);
 	gtk_label_set_text (GTK_LABEL (label), buf);
 
 	return FALSE;

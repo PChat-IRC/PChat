@@ -21,7 +21,11 @@
 #define PCHAT_COMMONPLUGIN_H
 
 #ifdef PLUGIN_C
+/* Define pchat_context only if not already defined */
+#ifndef PCHAT_CONTEXT_DEFINED
+#define PCHAT_CONTEXT_DEFINED
 typedef struct session pchat_context;
+#endif
 struct _pchat_plugin
 {
 	/* Keep these in sync with pchat-plugin.h */

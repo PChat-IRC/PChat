@@ -344,7 +344,8 @@ chanlist_build_gui_list (server *serv)
 
 	custom_list_clear ((CustomList *)GET_MODEL (serv));
 
-	/* discard pending rows FIXME: free the structs? */
+	/* Discard pending rows list - the row data itself is owned by
+	   chanlist_data_stored_rows, so we just free the GSList node pointers */
 	g_slist_free (serv->gui->chanlist_pending_rows);
 	serv->gui->chanlist_pending_rows = NULL;
 
@@ -521,10 +522,12 @@ chanlist_save (GtkWidget * wid, server *serv)
 static gboolean
 chanlist_flash (server *serv)
 {
-	if (gtk_widget_get_state_flags (serv->gui->chanlist_refresh) != GTK_STATE_ACTIVE)
-		gtk_widget_set_state_flags (serv->gui->chanlist_refresh, GTK_STATE_ACTIVE, GTK_STATE_FLAG_INSENSITIVE);
+	/* GTK3: Use GTK_STATE_FLAG_* flags instead of deprecated GTK_STATE_* values */
+	GtkStateFlags current_flags = gtk_widget_get_state_flags (serv->gui->chanlist_refresh);
+	if (!(current_flags & GTK_STATE_FLAG_ACTIVE))
+		gtk_widget_set_state_flags (serv->gui->chanlist_refresh, GTK_STATE_FLAG_ACTIVE, FALSE);
 	else
-		gtk_widget_set_state_flags (serv->gui->chanlist_refresh, GTK_STATE_PRELIGHT, GTK_STATE_FLAG_INSENSITIVE);
+		gtk_widget_unset_state_flags (serv->gui->chanlist_refresh, GTK_STATE_FLAG_ACTIVE);
 
 	return TRUE;
 }

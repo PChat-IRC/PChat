@@ -186,13 +186,13 @@ pevent_dialog_update (GtkWidget * wid, GtkWidget * twid)
 	}
 	if (m > (te[sig].num_args & 0x7f))
 	{
-		free (out);
-		out = malloc (4096);
+		g_free (out);
+		out = g_malloc (4096);
 		snprintf (out, 4096,
 					 _("This signal is only passed %d args, $%d is invalid"),
 					 te[sig].num_args & 0x7f, m);
 		fe_message (out, FE_MSG_WARN);
-		free (out);
+		g_free (out);
 		return;
 	}
 
@@ -200,15 +200,15 @@ pevent_dialog_update (GtkWidget * wid, GtkWidget * twid)
 	gtk_list_store_set (store, &iter, COL_EVENT_TEXT, text, -1);
 
 	if (pntevts_text[sig])
-		free (pntevts_text[sig]);
+		g_free (pntevts_text[sig]);
 	if (pntevts[sig])
-		free (pntevts[sig]);
+		g_free (pntevts[sig]);
 
-	pntevts_text[sig] = malloc (len + 1);
+	pntevts_text[sig] = g_malloc (len + 1);
 	memcpy (pntevts_text[sig], text, len + 1);
 	pntevts[sig] = out;
 
-	out = malloc (len + 2);
+	out = g_malloc (len + 2);
 	memcpy (out, text, len + 1);
 	out[len] = '\n';
 	out[len + 1] = 0;
@@ -218,7 +218,7 @@ pevent_dialog_update (GtkWidget * wid, GtkWidget * twid)
 		pevent_dialog_buffer = pchat_chat_buffer_new (PCHAT_TEXTVIEW_CHAT (twid));
 	
 	PrintTextRaw (pevent_dialog_buffer, out, 0, 0);
-	free (out);
+	g_free (out);
 
 	/* save this when we exit */
 	prefs.save_pevents = 1;
@@ -351,7 +351,7 @@ pevent_test_cb (GtkWidget * wid, GtkWidget * twid)
 		text = _(pntevts_text[n]);
 		len = strlen (text);
 
-		out = malloc (len + 2);
+		out = g_malloc (len + 2);
 		memcpy (out, text, len + 1);
 		out[len] = '\n';
 		out[len + 1] = 0;
@@ -361,7 +361,7 @@ pevent_test_cb (GtkWidget * wid, GtkWidget * twid)
 			pevent_dialog_buffer = pchat_chat_buffer_new (PCHAT_TEXTVIEW_CHAT (twid));
 
 		PrintTextRaw (pevent_dialog_buffer, out, 0, 0);
-		free (out);
+		g_free (out);
 	}
 }
 

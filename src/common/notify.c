@@ -376,7 +376,7 @@ notify_flush_watches (server * serv, GSList *from, GSList *end)
 	GSList *list;
 	struct notify *notify;
 
-	serv->supports_monitor ? strcpy (tbuf, "MONITOR + ") : strcpy (tbuf, "WATCH");
+	serv->supports_monitor ? g_strlcpy (tbuf, "MONITOR + ", sizeof (tbuf)) : g_strlcpy (tbuf, "WATCH", sizeof (tbuf));
 
 	list = from;
 	while (list != end)
@@ -474,11 +474,12 @@ notify_markonline (server *serv, char *word[], const message_tags_data *tags_dat
 				break;
 			}
 			i++;
-			/* FIXME: word[] is only a 32 element array, limits notify list to
-			   about 27 people */
+			/* Note: word[] is a PDIWORDS (32) element array, which limits ISON response
+			   parsing to about 27 nicks. This only affects legacy servers that don't
+			   support WATCH or MONITOR commands. Most modern IRC servers support these
+			   commands, which don't have this limitation. See notify_checklist(). */
 			if (i > PDIWORDS - 5)
 			{
-				/*fprintf (stderr, _("*** PCHAT WARNING: notify list too large.\n"));*/
 				break;
 			}
 		}
@@ -501,15 +502,15 @@ notify_checklist_for_server (server *serv)
 	GSList *list = notify_list;
 	int i = 0;
 
-	strcpy (outbuf, "ISON ");
+	g_strlcpy (outbuf, "ISON ", sizeof (outbuf));
 	while (list)
 	{
 		notify = list->data;
 		if (notify_do_network (notify, serv))
 		{
 			i++;
-			strcat (outbuf, notify->name);
-			strcat (outbuf, " ");
+			g_strlcat (outbuf, notify->name, sizeof (outbuf));
+			g_strlcat (outbuf, " ", sizeof (outbuf));
 			if (strlen (outbuf) > 460)
 			{
 				/* LAME: we can't send more than 512 bytes to the server, but     *
@@ -569,7 +570,7 @@ notify_showlist (struct session *sess, const message_tags_data *tags_data)
 	}
 	if (i)
 	{
-		sprintf (outbuf, "%d", i);
+		g_snprintf (outbuf, sizeof (outbuf), "%d", i);
 		EMIT_SIGNAL_TIMESTAMP (XP_TE_NOTIFYNUMBER, sess, outbuf, NULL, NULL, NULL,
 									  0, tags_data->timestamp);
 	} else

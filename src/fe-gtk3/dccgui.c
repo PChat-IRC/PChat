@@ -135,8 +135,8 @@ dcc_send_filereq_file (struct my_dcc_send *mdc, char *file)
 		dcc_send (mdc->sess, mdc->nick, file, mdc->maxcps, mdc->passive);
 	else
 	{
-		free (mdc->nick);
-		free (mdc);
+		g_free (mdc->nick);
+		g_free (mdc);
 	}
 }
 
@@ -146,7 +146,7 @@ fe_dcc_send_filereq (struct session *sess, char *nick, int maxcps, int passive)
 	char tbuf[128];
 	struct my_dcc_send *mdc;
 
-	mdc = malloc (sizeof (*mdc));
+	mdc = g_new (struct my_dcc_send, 1);
 	mdc->sess = sess;
 	mdc->nick = g_strdup (nick);
 	mdc->maxcps = maxcps;
@@ -217,7 +217,7 @@ dcc_prepare_row_send (struct DCC *dcc, GtkListStore *store, GtkTreeIter *iter,
 		snprintf (eta, sizeof (eta), "%.2d:%.2d:%.2d",
 					 to_go / 3600, (to_go / 60) % 60, to_go % 60);
 	} else
-		strcpy (eta, "--:--:--");
+		g_strlcpy (eta, "--:--:--", sizeof (eta));
 
 	if (update_only)
 		gtk_list_store_set (store, iter,
@@ -286,7 +286,7 @@ dcc_prepare_row_recv (struct DCC *dcc, GtkListStore *store, GtkTreeIter *iter,
 		snprintf (eta, sizeof (eta), "%.2d:%.2d:%.2d",
 					 to_go / 3600, (to_go / 60) % 60, to_go % 60);
 	} else
-		strcpy (eta, "--:--:--");
+		g_strlcpy (eta, "--:--:--", sizeof (eta));
 
 	if (update_only)
 		gtk_list_store_set (store, iter,
@@ -737,6 +737,12 @@ dcc_dclick_cb (GtkTreeView *view, GtkTreePath *path,
 	case STAT_ABORTED:
 	case STAT_DONE:
 		dcc_abort (dcc->serv->front_session, dcc);
+		break;
+	case STAT_QUEUED:
+	case STAT_ACTIVE:
+	case STAT_CONNECTING:
+		/* These states don't trigger abort on button click */
+		break;
 	}
 }
 

@@ -670,7 +670,7 @@ static void
 servlist_update_from_entry (char **str, GtkWidget *entry)
 {
 	if (*str)
-		free (*str);
+		g_free (*str);
 
 	if (gtk_entry_get_text (GTK_ENTRY (entry))[0] == 0)
 		*str = NULL;
@@ -961,10 +961,10 @@ servlist_savegui (void)
 	if (!rfc_casecmp (nick1, nick2))
 		return 2;
 
-	strcpy (prefs.pchat_irc_nick1, nick1);
-	strcpy (prefs.pchat_irc_nick2, nick2);
-	strcpy (prefs.pchat_irc_nick3, gtk_entry_get_text (GTK_ENTRY (entry_nick3)));
-	strcpy (prefs.pchat_irc_user_name, gtk_entry_get_text (GTK_ENTRY (entry_guser)));
+	g_strlcpy (prefs.pchat_irc_nick1, nick1, sizeof (prefs.pchat_irc_nick1));
+	g_strlcpy (prefs.pchat_irc_nick2, nick2, sizeof (prefs.pchat_irc_nick2));
+	g_strlcpy (prefs.pchat_irc_nick3, gtk_entry_get_text (GTK_ENTRY (entry_nick3)), sizeof (prefs.pchat_irc_nick3));
+	g_strlcpy (prefs.pchat_irc_user_name, gtk_entry_get_text (GTK_ENTRY (entry_guser)), sizeof (prefs.pchat_irc_user_name));
 	sp = strchr (prefs.pchat_irc_user_name, ' ');
 	if (sp)
 		sp[0] = 0;	/* spaces will break the login */
@@ -1208,7 +1208,7 @@ servlist_celledit_cb (GtkCellRendererText *cell, gchar *arg1, gchar *arg2,
 		netname = net->name;
 		net->name = g_strdup (arg2);
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, 0, net->name, -1);
-		free (netname);
+		g_free (netname);
 	}
 
 	gtk_tree_path_free (path);
@@ -1391,7 +1391,7 @@ servlist_editserver_cb (GtkCellRendererText *cell, gchar *name, gchar *newval, g
 		servname = serv->hostname;
 		serv->hostname = servlist_sanitize_hostname (newval);
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, 0, serv->hostname, -1);
-		free (servname);
+		g_free (servname);
 	}
 }
 
@@ -1429,7 +1429,7 @@ servlist_editcommand_cb (GtkCellRendererText *cell, gchar *name, gchar *newval, 
 		cmd = entry->command;
 		entry->command = servlist_sanitize_command (newval);
 		gtk_list_store_set (GTK_LIST_STORE (model), &iter, 0, entry->command, -1);
-		free (cmd);
+		g_free (cmd);
 	}
 }
 
@@ -1529,7 +1529,7 @@ servlist_combo_cb (GtkEntry *entry, gpointer userdata)
 		return;
 
 	if (selected_net->encoding)
-		free (selected_net->encoding);
+		g_free (selected_net->encoding);
 	selected_net->encoding = g_strdup (gtk_entry_get_text (entry));
 }
 
@@ -1555,7 +1555,8 @@ servlist_logintypecombo_cb (GtkComboBox *cb, gpointer *userdata)
 	}
 	if (login_types_conf[index] == LOGIN_CUSTOM)
 	{
-		gtk_notebook_set_current_page (GTK_NOTEBOOK (userdata), 2);		/* FIXME avoid hardcoding? */
+		/* Switch to "Connect commands" tab (page 2) for custom login */
+		gtk_notebook_set_current_page (GTK_NOTEBOOK (userdata), 2);
 	}
 	
 	/* EXTERNAL uses a cert, not a pass */

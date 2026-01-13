@@ -39,6 +39,7 @@ struct _PchatTextViewChatPrivate
 	
 	GtkTextTag *url_tag;
 	GtkTextTag *marker_tag;           /* Tag for marker line */
+	GtkTextTag *search_highlight_tag; /* Tag for search result highlighting */
 	
 	/* Text tags for formatting */
 	GtkTextTag *bold_tag;
@@ -224,6 +225,14 @@ pchat_textview_chat_create_tags (PchatTextViewChat *chat)
 	              "weight", PANGO_WEIGHT_BOLD,
 	              NULL);
 	gtk_text_tag_table_add (priv->tag_table, priv->marker_tag);
+	
+	/* Create search highlight tag */
+	priv->search_highlight_tag = gtk_text_tag_new ("search-highlight");
+	g_object_set (priv->search_highlight_tag,
+	              "background", "#FFFF00",  /* Yellow highlight */
+	              "foreground", "#000000",  /* Black text */
+	              NULL);
+	gtk_text_tag_table_add (priv->tag_table, priv->search_highlight_tag);
 	
 	/* Create foreground color tags */
 	for (i = 0; i < 16; i++)
@@ -1035,7 +1044,17 @@ pchat_textview_chat_clear (PchatTextViewChat *chat, gint lines)
 	}
 	else
 	{
-		/* TODO: Implement partial clearing */
+		/* Partial clearing: delete first N lines from the buffer */
+		GtkTextIter start, end;
+		gint lines_to_delete = MIN (lines, buf->line_count);
+		
+		if (lines_to_delete > 0)
+		{
+			gtk_text_buffer_get_start_iter (buf->buffer, &start);
+			gtk_text_buffer_get_iter_at_line (buf->buffer, &end, lines_to_delete);
+			gtk_text_buffer_delete (buf->buffer, &start, &end);
+			buf->line_count -= lines_to_delete;
+		}
 	}
 }
 
@@ -1053,7 +1072,17 @@ pchat_chat_buffer_clear (PchatChatBuffer *buf, gint lines)
 	}
 	else
 	{
-		/* TODO: Implement partial clearing */
+		/* Partial clearing: delete first N lines from the buffer */
+		GtkTextIter start, end;
+		gint lines_to_delete = MIN (lines, buf->line_count);
+		
+		if (lines_to_delete > 0)
+		{
+			gtk_text_buffer_get_start_iter (buf->buffer, &start);
+			gtk_text_buffer_get_iter_at_line (buf->buffer, &end, lines_to_delete);
+			gtk_text_buffer_delete (buf->buffer, &start, &end);
+			buf->line_count -= lines_to_delete;
+		}
 	}
 }
 
@@ -1301,16 +1330,38 @@ pchat_textview_chat_search (PchatTextViewChat *chat, const gchar *text,
 		gtk_text_view_scroll_to_iter (GTK_TEXT_VIEW (chat), &match_start,
 		                               0.0, TRUE, 0.0, 0.5);
 		
-		/* Highlight if requested */
+		/* Apply persistent highlighting if requested */
 		if (flags & PCHAT_SEARCH_HIGHLIGHT)
 		{
-			/* TODO: Add persistent highlighting */
+			gtk_text_buffer_apply_tag (buf->buffer, priv->search_highlight_tag,
+			                            &match_start, &match_end);
 		}
 		
 		return TRUE;
 	}
 	
 	return FALSE;
+}
+
+void
+pchat_textview_chat_clear_search_highlight (PchatTextViewChat *chat)
+{
+	PchatTextViewChatPrivate *priv;
+	PchatChatBuffer *buf;
+	GtkTextIter start, end;
+	
+	g_return_if_fail (PCHAT_IS_TEXTVIEW_CHAT (chat));
+	
+	priv = chat->priv;
+	buf = priv->current_buffer;
+	
+	if (!buf || !priv->search_highlight_tag)
+		return;
+	
+	/* Remove search highlight tag from entire buffer */
+	gtk_text_buffer_get_start_iter (buf->buffer, &start);
+	gtk_text_buffer_get_end_iter (buf->buffer, &end);
+	gtk_text_buffer_remove_tag (buf->buffer, priv->search_highlight_tag, &start, &end);
 }
 
 void

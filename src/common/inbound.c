@@ -53,7 +53,12 @@ void
 clear_channel (session *sess)
 {
 	if (sess->channel[0])
-		strcpy (sess->waitchannel, sess->channel);
+	{
+		g_strlcpy (sess->waitchannel, sess->channel, CHANLEN);
+		/* Remove from hash table when clearing channel */
+		if (sess->type == SESS_CHANNEL && sess->server->channels_hash)
+			g_hash_table_remove (sess->server->channels_hash, sess->channel);
+	}
 	sess->channel[0] = 0;
 	sess->doing_who = FALSE;
 	sess->done_away_check = FALSE;
@@ -518,7 +523,16 @@ inbound_newnick (server *serv, char *nick, char *newnick, int quiet,
 			}
 			if (sess->type == SESS_DIALOG && !serv->p_cmp (sess->channel, nick))
 			{
+				/* Update hash table with new nick */
+				if (serv->dialogs_hash)
+				{
+					g_hash_table_remove (serv->dialogs_hash, sess->channel);
+				}
 				safe_strcpy (sess->channel, newnick, CHANLEN);
+				if (serv->dialogs_hash)
+				{
+					g_hash_table_insert (serv->dialogs_hash, sess->channel, sess);
+				}
 				fe_set_channel (sess);
 			}
 			fe_set_title (sess);
@@ -594,7 +608,16 @@ inbound_ujoin (server *serv, char *chan, char *nick, char *ip,
 		}
 	}
 
+	/* Remove old hash entry if channel name is changing */
+	if (sess->channel[0] && serv->channels_hash)
+		g_hash_table_remove (serv->channels_hash, sess->channel);
+
 	safe_strcpy (sess->channel, chan, CHANLEN);
+
+	/* Add to hash table with new channel name */
+	if (serv->channels_hash)
+		g_hash_table_insert (serv->channels_hash, sess->channel, sess);
+
 	if (found_unused)
 	{
 		chanopt_load (sess);
@@ -1163,7 +1186,7 @@ check_autojoin_channels (server *serv)
 		{
 			if (sess->willjoinchannel[0] != 0)
 			{
-				strcpy (sess->waitchannel, sess->willjoinchannel);
+				g_strlcpy (sess->waitchannel, sess->willjoinchannel, CHANLEN);
 				sess->willjoinchannel[0] = 0;
 
 				fav = servlist_favchan_find (serv->network, sess->waitchannel, NULL);	/* Is this channel in our favorites? */
@@ -1206,9 +1229,7 @@ check_autojoin_channels (server *serv)
 		{
 			serv->p_join_list (serv, serv->favlist);
 			i++;
-
-			/* FIXME this is not going to work and is not needed either. server_free() does the job already. */
-			/* g_slist_free_full (serv->favlist, (GDestroyNotify) servlist_favchan_free); */
+			/* Note: favlist is freed in server_free(), not here */
 		}
 	}
 
@@ -1349,13 +1370,13 @@ set_default_modes (server *serv)
 	modes[1] = '\0';
 
 	if (prefs.pchat_irc_wallops)
-		strcat (modes, "w");
+		g_strlcat (modes, "w", sizeof (modes));
 	if (prefs.pchat_irc_servernotice)
-		strcat (modes, "s");
+		g_strlcat (modes, "s", sizeof (modes));
 	if (prefs.pchat_irc_invisible)
-		strcat (modes, "i");
+		g_strlcat (modes, "i", sizeof (modes));
 	if (prefs.pchat_irc_hidehost)
-		strcat (modes, "x");
+		g_strlcat (modes, "x", sizeof (modes));
 
 	if (modes[1] != '\0')
 	{
@@ -1837,7 +1858,7 @@ inbound_cap_ls (server *serv, char *nick, char *extensions_str,
 
 	extensions = g_strsplit (extensions_str, " ", 0);
 
-	strcpy (buffer, "CAP REQ :");
+	g_strlcpy (buffer, "CAP REQ :", sizeof (buffer));
 
 	for (i=0; extensions[i]; i++)
 	{

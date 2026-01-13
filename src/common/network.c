@@ -89,7 +89,7 @@ net_resolve (netstore * ns, char *hostname, int port, char **real_host)
 /*	if (ns->ip6_hostent)
 		freeaddrinfo (ns->ip6_hostent);*/
 
-	sprintf (portstring, "%d", port);
+	g_snprintf (portstring, sizeof (portstring), "%d", port);
 
 	memset (&hints, 0, sizeof (struct addrinfo));
 	hints.ai_family = PF_UNSPEC; /* support ipv6 and ipv4 */
