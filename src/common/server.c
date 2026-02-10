@@ -1784,7 +1784,7 @@ server_set_defaults (server *serv)
 	g_free (serv->nick_prefixes);
 	g_free (serv->nick_modes);
 #ifdef USE_OPENSSL
-        g_clear_pointer (&serv->scram_session, scram_session_free);
+        g_clear_pointer (&serv->scram_sess, scram_session_free);
 #endif
 	serv->chantypes = g_strdup ("#&!+");
 	serv->chanmodes = g_strdup ("beI,k,l");
@@ -1965,7 +1965,7 @@ server_free (server *serv)
 	if (serv->ctx)
 		_SSL_context_free (serv->ctx);
 
-        g_clear_pointer (&serv->scram_session, scram_session_free);
+        g_clear_pointer (&serv->scram_sess, scram_session_free);
 #endif
 
 	fe_server_callback (serv);

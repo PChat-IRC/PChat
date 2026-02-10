@@ -2004,11 +2004,11 @@ scram_authenticate (server *serv, const char *data, const char *digest,
 	size_t output_len;
 	gsize decoded_len;
 
-	if (serv->scram_session == NULL)
+	if (serv->scram_sess == NULL)
 	{
-		serv->scram_session = scram_session_create (digest, user, password);
+		serv->scram_sess = scram_session_create (digest, user, password);
 
-		if (serv->scram_session == NULL)
+		if (serv->scram_sess == NULL)
 		{
 			PrintTextf (serv->server_session, _("Could not create SCRAM session with digest %s"), digest);
 			g_warning ("Could not create SCRAM session with digest %s", digest);
@@ -2018,7 +2018,7 @@ scram_authenticate (server *serv, const char *data, const char *digest,
 	}
 
 	decoded = g_base64_decode (data, &decoded_len);
-	status = scram_process (serv->scram_session, decoded, &output, &output_len);
+	status = scram_process (serv->scram_sess, decoded, &output, &output_len);
 	g_free (decoded);
 
 	if (status == SCRAM_IN_PROGRESS)
@@ -2033,20 +2033,20 @@ scram_authenticate (server *serv, const char *data, const char *digest,
 	{
 		// Authentication succeeded
 		tcp_sendf (serv, "AUTHENTICATE +\r\n");
-		g_clear_pointer (&serv->scram_session, scram_session_free);
+		g_clear_pointer (&serv->scram_sess, scram_session_free);
 	}
 	else if (status == SCRAM_ERROR)
 	{
 		// Authentication failed
 		tcp_sendf (serv, "AUTHENTICATE *\r\n");
 
-		if (serv->scram_session->error != NULL)
+		if (serv->scram_sess->error != NULL)
 		{
-			PrintTextf (serv->server_session, _("SASL SCRAM authentication failed: %s"), serv->scram_session->error);
-			g_info ("SASL SCRAM authentication failed: %s", serv->scram_session->error);
+			PrintTextf (serv->server_session, _("SASL SCRAM authentication failed: %s"), serv->scram_sess->error);
+			g_info ("SASL SCRAM authentication failed: %s", serv->scram_sess->error);
 		}
 
-		g_clear_pointer (&serv->scram_session, scram_session_free);
+		g_clear_pointer (&serv->scram_sess, scram_session_free);
 	}
 }
 #endif
@@ -2097,7 +2097,7 @@ void
 inbound_sasl_error (server *serv)
 {
 #ifdef USE_OPENSSL
-    g_clear_pointer (&serv->scram_session, scram_session_free);
+    g_clear_pointer (&serv->scram_sess, scram_session_free);
 #endif
 	/* Just abort, not much we can do */
 	tcp_sendf (serv, "AUTHENTICATE *\r\n");

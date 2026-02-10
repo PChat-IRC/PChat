@@ -594,7 +594,7 @@ typedef struct server
 #ifdef USE_OPENSSL
 	unsigned int use_ssl:1;				  /* is server SSL capable? */
 	unsigned int accept_invalid_cert:1;/* ignore result of server's cert. verify */
-	scram_session *scram_session; /* session for SASL SCRAM authentication */
+	scram_session *scram_sess; /* session for SASL SCRAM authentication */
 #endif
 } server;
 
