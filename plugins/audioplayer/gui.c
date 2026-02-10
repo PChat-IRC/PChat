@@ -9,6 +9,7 @@
 
 /* Undefine xchat macros to allow direct struct member access */
 #undef pchat_printf
+#undef pchat_print
 
 /* GUI state */
 static GtkWidget *main_window = NULL;
@@ -21,6 +22,7 @@ static GtkWidget *next_button = NULL;
 static GtkWidget *now_playing_label = NULL;
 static GtkWidget *volume_scale = NULL;
 static GtkListStore *playlist_store = NULL;
+static gboolean gtk_initialized = FALSE;
 
 static pchat_plugin *ph_gui = NULL;
 static AudioPlayer *player_gui = NULL;
@@ -337,6 +339,15 @@ static gboolean update_timer_callback(gpointer data) {
 void audioplayer_gui_init(pchat_plugin *ph, AudioPlayer *player) {
     ph_gui = ph;
     player_gui = player;
+    
+    /* Ensure GTK3 is initialized (may not be when running under wx frontend) */
+    if (!gtk_initialized) {
+        if (!gtk_init_check(NULL, NULL)) {
+            ph->pchat_print(ph, "[AudioPlayer] Cannot open GUI: GTK3 initialization failed.\n");
+            return;
+        }
+        gtk_initialized = TRUE;
+    }
     
     if (main_window) {
         /* Window already exists, just show it */

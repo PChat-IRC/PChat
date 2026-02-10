@@ -1,0 +1,7 @@
+/* PChat wxWidgets frontend - Windows resource file */
+
+/* Application icon */
+pchat ICON "../fe-gtk3/pchat.ico"
+
+/* Application manifest for common controls v6 and DPI awareness */
+1 24 "pchat-wx.manifest"
