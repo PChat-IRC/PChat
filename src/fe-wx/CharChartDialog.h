@@ -23,9 +23,9 @@ private:
     void OnBlockChanged(wxCommandEvent &event);
     void PopulateGrid(int base_cp);
 
-    wxChoice *m_block_choice;
-    wxGrid *m_grid;
-    wxStaticText *m_info_label;
+    wxChoice *m_block_choice = nullptr;
+    wxGrid *m_grid = nullptr;
+    wxStaticText *m_info_label = nullptr;
     int m_base_codepoint = 0;
 
     wxDECLARE_EVENT_TABLE();

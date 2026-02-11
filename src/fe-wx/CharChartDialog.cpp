@@ -131,6 +131,11 @@ void CharChartDialog::OnBlockChanged(wxCommandEvent &event)
 
 void CharChartDialog::OnCellSelected(wxGridEvent &event)
 {
+    if (!m_info_label) {
+        event.Skip();
+        return;
+    }
+
     int r = event.GetRow();
     int c = event.GetCol();
     int cp = m_base_codepoint + r * 16 + c;
