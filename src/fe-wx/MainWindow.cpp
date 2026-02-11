@@ -213,6 +213,11 @@ MainWindow::MainWindow()
     if (prefs.pchat_gui_win_width <= 0)
         Centre();
 
+    /* Apply window transparency */
+    if (prefs.pchat_gui_transparency < 255 && prefs.pchat_gui_transparency >= 0) {
+        SetTransparent(prefs.pchat_gui_transparency);
+    }
+
     /* Create system tray icon */
     m_tray_icon = new PchatTrayIcon(this);
 

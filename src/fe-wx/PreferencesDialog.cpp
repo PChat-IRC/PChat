@@ -273,6 +273,12 @@ wxPanel *PreferencesDialog::CreateAppearancePage(wxWindow *parent)
                                         wxT("Window opacity:")),
                       0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
     m_opacity_slider = new wxSlider(transParent, wxID_ANY, 255, 0, 255);
+    m_opacity_slider->Bind(wxEVT_SLIDER, [this](wxCommandEvent &) {
+        /* Live preview of transparency */
+        if (g_main_window) {
+            g_main_window->SetTransparent(m_opacity_slider->GetValue());
+        }
+    });
     opacitySizer->Add(m_opacity_slider, 1, wxEXPAND);
     transBox->Add(opacitySizer, 0, wxEXPAND | wxALL, 4);
     sizer->Add(transBox, 0, wxEXPAND | wxBOTTOM, 8);
@@ -1857,11 +1863,27 @@ void PreferencesDialog::OnOK(wxCommandEvent &event)
     SaveSettings();
     if (m_colors_changed && g_main_window)
         g_main_window->ApplyPaletteColors();
+
+    /* Apply window transparency */
+    if (g_main_window) {
+        if (prefs.pchat_gui_transparency < 255)
+            g_main_window->SetTransparent(prefs.pchat_gui_transparency);
+        else
+            g_main_window->SetTransparent(255);
+    }
+
     EndModal(wxID_OK);
 }
 
 void PreferencesDialog::OnCancel(wxCommandEvent &event)
 {
+    /* Restore original transparency if user was live-previewing */
+    if (g_main_window) {
+        if (prefs.pchat_gui_transparency < 255)
+            g_main_window->SetTransparent(prefs.pchat_gui_transparency);
+        else
+            g_main_window->SetTransparent(255);
+    }
     EndModal(wxID_CANCEL);
 }
 
