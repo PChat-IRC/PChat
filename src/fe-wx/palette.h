@@ -26,13 +26,20 @@
 #define MAX_COL      41
 #define NUM_COLORS   (MAX_COL + 1)
 
-/* Initialize palette with defaults */
+/* Initialize palette with defaults (uses dark flag to choose preset). */
 void wx_palette_init(void);
 
-/* Load palette from colors.conf (call after wx_palette_init) */
+/* Re-initialize palette with dark or light defaults.
+   Call this when the theme changes, then call wx_palette_load()
+   to overlay any user customizations. */
+void wx_palette_init_for_theme(bool dark);
+
+/* Load palette from the theme-appropriate config file.
+   Light theme uses colors.conf, dark theme uses colors-dark.conf.
+   Call after wx_palette_init. */
 void wx_palette_load(void);
 
-/* Save palette to colors.conf */
+/* Save palette to the theme-appropriate config file. */
 void wx_palette_save(void);
 
 /* Get a palette color as wxColour */

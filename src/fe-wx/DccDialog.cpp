@@ -6,6 +6,7 @@
 
 #include "DccDialog.h"
 #include "fe-wx.h"
+#include "DarkMode.h"
 
 #include <glib.h>
 
@@ -56,6 +57,8 @@ DccChatDialog::DccChatDialog(wxWindow *parent)
     Centre();
 
     PopulateList();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 DccChatDialog::~DccChatDialog()
@@ -266,6 +269,8 @@ DccTransferDialog::DccTransferDialog(wxWindow *parent)
     m_btn_resume->Enable(false);
 
     PopulateList();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 DccTransferDialog::~DccTransferDialog()

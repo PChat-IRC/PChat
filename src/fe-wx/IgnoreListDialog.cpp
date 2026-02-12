@@ -5,6 +5,7 @@
  */
 
 #include "IgnoreListDialog.h"
+#include "DarkMode.h"
 
 #include <glib.h>
 
@@ -143,6 +144,8 @@ IgnoreListDialog::IgnoreListDialog(wxWindow *parent)
 
     PopulateList();
     UpdateStats();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 IgnoreListDialog::~IgnoreListDialog()

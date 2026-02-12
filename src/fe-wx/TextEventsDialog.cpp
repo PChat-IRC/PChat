@@ -11,6 +11,7 @@
  */
 
 #include "TextEventsDialog.h"
+#include "DarkMode.h"
 
 /* glib.h must be included outside extern "C" first because gwin32.h
    contains C++ templates on Windows. The include guard in glib.h then
@@ -118,6 +119,8 @@ TextEventsDialog::TextEventsDialog(wxWindow *parent)
 
     PopulateEvents();
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 TextEventsDialog::~TextEventsDialog()

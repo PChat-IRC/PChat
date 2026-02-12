@@ -12,6 +12,7 @@
 
 #include "NetworkListDialog.h"
 #include "fe-wx.h"
+#include "DarkMode.h"
 
 #include <wx/statline.h>
 
@@ -53,6 +54,8 @@ NetworkListDialog::NetworkListDialog(wxWindow *parent)
     m_show_favorites->SetValue(prefs.pchat_gui_slist_fav);
 
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 NetworkListDialog::~NetworkListDialog()
@@ -390,6 +393,8 @@ NetworkEditDialog::NetworkEditDialog(wxWindow *parent, ircnet *net)
     CreateLayout();
     PopulateFields();
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 NetworkEditDialog::~NetworkEditDialog()

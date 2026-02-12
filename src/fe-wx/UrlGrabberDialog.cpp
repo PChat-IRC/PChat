@@ -5,6 +5,7 @@
  */
 
 #include "UrlGrabberDialog.h"
+#include "DarkMode.h"
 
 #include <glib.h>
 
@@ -53,6 +54,8 @@ UrlGrabberDialog::UrlGrabberDialog(wxWindow *parent)
     Centre();
 
     PopulateList();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 UrlGrabberDialog::~UrlGrabberDialog()

@@ -23,6 +23,7 @@
 #include "ChannelListDialog.h"
 #include "JoinDialog.h"
 #include "palette.h"
+#include "DarkMode.h"
 #include "fe-wx.h"
 #include <wx/aboutdlg.h>
 #include <wx/tglbtn.h>
@@ -230,6 +231,13 @@ MainWindow::MainWindow()
 
     /* Spell check debounce timer — fires 200ms after last keystroke */
     m_spell_timer.Bind(wxEVT_TIMER, &MainWindow::OnSpellTimer, this);
+
+    /* Apply dark/light mode colors to all widgets.  The palette was
+       already initialized with the correct defaults (dark or light)
+       before this constructor ran, but CreateMainLayout() only sets
+       chat text colors.  ApplyPaletteColors() styles all remaining
+       widgets (tree, userlist, input box, topic, panels, etc.). */
+    ApplyPaletteColors();
 }
 
 MainWindow::~MainWindow()
@@ -625,7 +633,7 @@ void MainWindow::CreateMainLayout()
 
     /* Spell check squiggly underline indicator (indicator 0) */
     m_input_box->IndicatorSetStyle(0, wxSTC_INDIC_SQUIGGLE);
-    m_input_box->IndicatorSetForeground(0, wxColour(255, 0, 0));
+    m_input_box->IndicatorSetForeground(0, wx_darkmode_spell_indicator());
 
     /* Word chars for STC word boundary detection (used by spell check) */
     m_input_box->SetWordChars(
@@ -1389,7 +1397,7 @@ void MainWindow::AppendIrcText(wxRichTextCtrl *ctrl, const wxString &text,
             wxRichTextAttr tsStyle;
             wxFont tsFont = baseFont;
             tsStyle.SetFont(tsFont);
-            tsStyle.SetTextColour(wxColour(128, 128, 128));
+            tsStyle.SetTextColour(wx_darkmode_timestamp());
             ctrl->BeginStyle(tsStyle);
             ctrl->WriteText(wxString::FromUTF8(stamp_str));
             ctrl->EndStyle();
@@ -1554,11 +1562,157 @@ void MainWindow::ClearText(struct session *sess, int lines)
 
 void MainWindow::ApplyPaletteColors()
 {
-    /* Update chat widget background and foreground */
+    bool dark = wx_darkmode_is_dark();
+
+    /* Update wxWidgets native dark mode (title bar, menu bar, native controls).
+       This uses wxApp::MSWEnableDarkMode() which handles all the Windows-
+       specific dark mode APIs (uxtheme, DWM, etc.) properly. */
+    wx_darkmode_enable_wx(wxTheApp);
+
+    /* ---- Chat text widget ---- */
     m_chat_text->SetBackgroundColour(wx_palette_get(COL_BG));
     m_chat_text->SetForegroundColour(wx_palette_get(COL_FG));
 
-    /* Re-render current session content with new colors */
+    /* ---- Main panel / frame chrome ---- */
+    if (dark) {
+        wxColour panelBg = wx_darkmode_panel_bg();
+        wxColour panelFg = wx_darkmode_panel_fg();
+        wxColour inputBg = wx_darkmode_input_bg();
+
+        /* Frame and main panel */
+        SetBackgroundColour(panelBg);
+        SetForegroundColour(panelFg);
+        if (m_main_panel)     { m_main_panel->SetBackgroundColour(panelBg);
+                                m_main_panel->SetForegroundColour(panelFg); }
+
+        /* Splitters */
+        if (m_hsplitter_left)  { m_hsplitter_left->SetBackgroundColour(panelBg); }
+        if (m_hsplitter_right) { m_hsplitter_right->SetBackgroundColour(panelBg); }
+
+        /* Tree / userlist */
+        if (m_channel_tree)   { m_channel_tree->SetBackgroundColour(panelBg);
+                                m_channel_tree->SetForegroundColour(panelFg); }
+        if (m_user_list)      { m_user_list->SetBackgroundColour(panelBg);
+                                m_user_list->SetForegroundColour(panelFg); }
+
+        /* Topic / input */
+        if (m_topic_entry)    { m_topic_entry->SetBackgroundColour(inputBg);
+                                m_topic_entry->SetForegroundColour(panelFg); }
+        if (m_input_box)      { m_input_box->StyleSetBackground(wxSTC_STYLE_DEFAULT, inputBg);
+                                m_input_box->StyleSetForeground(wxSTC_STYLE_DEFAULT, panelFg);
+                                m_input_box->StyleClearAll();
+                                m_input_box->SetCaretForeground(panelFg); }
+
+        /* Panels */
+        if (m_topic_panel)    { m_topic_panel->SetBackgroundColour(panelBg); }
+        if (m_mode_panel)     { m_mode_panel->SetBackgroundColour(panelBg); }
+        if (m_input_panel)    { m_input_panel->SetBackgroundColour(panelBg); }
+        if (m_userlist_panel) { m_userlist_panel->SetBackgroundColour(panelBg);
+                                m_userlist_panel->SetForegroundColour(panelFg); }
+        if (m_usercount_label){ m_usercount_label->SetForegroundColour(panelFg); }
+        if (m_chat_panel)     { m_chat_panel->SetBackgroundColour(panelBg); }
+        if (m_right_panel)    { m_right_panel->SetBackgroundColour(panelBg); }
+        if (m_nick_button)    { m_nick_button->SetBackgroundColour(inputBg);
+                                m_nick_button->SetForegroundColour(panelFg); }
+
+        /* Mode buttons */
+        for (int i = 0; i < NUM_FLAG_WIDS; i++) {
+            if (m_mode_buttons[i]) {
+                m_mode_buttons[i]->SetBackgroundColour(inputBg);
+                m_mode_buttons[i]->SetForegroundColour(panelFg);
+            }
+        }
+        if (m_key_entry)   { m_key_entry->SetBackgroundColour(inputBg);
+                             m_key_entry->SetForegroundColour(panelFg); }
+        if (m_limit_entry) { m_limit_entry->SetBackgroundColour(inputBg);
+                             m_limit_entry->SetForegroundColour(panelFg); }
+
+        /* Userlist / dialog button panels */
+        if (m_ul_buttons_panel)  { m_ul_buttons_panel->SetBackgroundColour(panelBg); }
+        if (m_dlg_buttons_panel) { m_dlg_buttons_panel->SetBackgroundColour(panelBg); }
+
+        /* Status bar */
+        if (wxStatusBar *sb = GetStatusBar()) {
+            sb->SetBackgroundColour(panelBg);
+            sb->SetForegroundColour(panelFg);
+        }
+
+        /* Tab bar (bottom notebook) */
+        if (m_tab_bar) {
+            m_tab_bar->SetBackgroundColour(panelBg);
+            m_tab_bar->SetForegroundColour(panelFg);
+        }
+    } else {
+        /* Reset to system defaults */
+        auto resetWin = [](wxWindow *w) {
+            if (!w) return;
+            w->SetBackgroundColour(wxNullColour);
+            w->SetForegroundColour(wxNullColour);
+        };
+        SetBackgroundColour(wxNullColour);
+        SetForegroundColour(wxNullColour);
+        resetWin(m_main_panel);
+        resetWin(m_hsplitter_left);
+        resetWin(m_hsplitter_right);
+        resetWin(m_channel_tree);
+        resetWin(m_user_list);
+        resetWin(m_topic_entry);
+        resetWin(m_topic_panel);
+        resetWin(m_mode_panel);
+        resetWin(m_input_panel);
+        resetWin(m_userlist_panel);
+        resetWin(m_usercount_label);
+        resetWin(m_chat_panel);
+        resetWin(m_right_panel);
+        resetWin(m_nick_button);
+        resetWin(m_ul_buttons_panel);
+        resetWin(m_dlg_buttons_panel);
+        for (int i = 0; i < NUM_FLAG_WIDS; i++)
+            resetWin(m_mode_buttons[i]);
+        resetWin(m_key_entry);
+        resetWin(m_limit_entry);
+        if (wxStatusBar *sb = GetStatusBar()) {
+            sb->SetBackgroundColour(wxNullColour);
+            sb->SetForegroundColour(wxNullColour);
+        }
+        resetWin(m_tab_bar);
+        if (m_input_box) {
+            wxColour sysBg = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
+            wxColour sysFg = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOWTEXT);
+            m_input_box->StyleSetBackground(wxSTC_STYLE_DEFAULT, sysBg);
+            m_input_box->StyleSetForeground(wxSTC_STYLE_DEFAULT, sysFg);
+            m_input_box->StyleClearAll();
+            m_input_box->SetCaretForeground(sysFg);
+        }
+    }
+
+    /* ---- Spell check indicator color ---- */
+    if (m_input_box)
+        m_input_box->IndicatorSetForeground(0, wx_darkmode_spell_indicator());
+
+    /* ---- Re-color all tree items for current theme ---- */
+    for (auto &st : m_sessions) {
+        if (st.tree_id.IsOk()) {
+            wxColour textColor;
+            switch (st.tab_color) {
+            case FE_COLOR_NEW_DATA:
+                textColor = wx_darkmode_tab_new_data();
+                break;
+            case FE_COLOR_NEW_MSG:
+                textColor = wx_darkmode_tab_new_msg();
+                break;
+            case FE_COLOR_NEW_HILIGHT:
+                textColor = wx_darkmode_tab_hilight();
+                break;
+            default:
+                textColor = wx_darkmode_tree_default_fg();
+                break;
+            }
+            m_channel_tree->SetItemTextColour(st.tree_id, textColor);
+        }
+    }
+
+    /* ---- Re-render current session content with new colors ---- */
     if (m_current_session) {
         SessionTab *tab = FindSessionTab(m_current_session);
         if (tab && !tab->text_lines.empty()) {
@@ -1574,9 +1728,25 @@ void MainWindow::ApplyPaletteColors()
             m_chat_text->Thaw();
             m_chat_text->ShowPosition(m_chat_text->GetLastPosition());
         }
+
+        /* Re-color userlist nicks */
+        for (long i = 0; i < m_user_list->GetItemCount(); i++) {
+            struct User *user = (struct User *)m_user_list->GetItemData(i);
+            if (!user) continue;
+            if (user->op)
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_op());
+            else if (user->hop)
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_halfop());
+            else if (user->voice)
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_voice());
+            else
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_normal());
+        }
     }
 
-    m_chat_text->Refresh();
+    /* Refresh everything */
+    Refresh();
+    Update();
 }
 
 /* ===== Topic ===== */
@@ -1635,16 +1805,16 @@ void MainWindow::SetTabColor(struct session *sess, int color)
         wxColour textColor;
         switch (tab->tab_color) {
         case FE_COLOR_NEW_DATA:
-            textColor = wxColour(0, 0, 200);    /* blue for data */
+            textColor = wx_darkmode_tab_new_data();
             break;
         case FE_COLOR_NEW_MSG:
-            textColor = wxColour(200, 0, 0);    /* red for message */
+            textColor = wx_darkmode_tab_new_msg();
             break;
         case FE_COLOR_NEW_HILIGHT:
-            textColor = wxColour(0, 160, 0);    /* green for highlight */
+            textColor = wx_darkmode_tab_hilight();
             break;
         default:
-            textColor = *wxBLACK;
+            textColor = wx_darkmode_tree_default_fg();
             break;
         }
         m_channel_tree->SetItemTextColour(tab->tree_id, textColor);
@@ -1970,11 +2140,13 @@ void MainWindow::UserlistInsert(struct session *sess, struct User *user,
 
     /* Color nick by status */
     if (user->op) {
-        m_user_list->SetItemTextColour(idx, wxColour(200, 0, 0));
+        m_user_list->SetItemTextColour(idx, wx_darkmode_nick_op());
     } else if (user->hop) {
-        m_user_list->SetItemTextColour(idx, wxColour(128, 0, 128));
+        m_user_list->SetItemTextColour(idx, wx_darkmode_nick_halfop());
     } else if (user->voice) {
-        m_user_list->SetItemTextColour(idx, wxColour(0, 128, 0));
+        m_user_list->SetItemTextColour(idx, wx_darkmode_nick_voice());
+    } else {
+        m_user_list->SetItemTextColour(idx, wx_darkmode_nick_normal());
     }
 
     /* Store user pointer for lookup */
@@ -2016,13 +2188,13 @@ void MainWindow::UserlistRehash(struct session *sess, struct User *user)
             m_user_list->SetItem(li);
 
             if (user->op) {
-                m_user_list->SetItemTextColour(i, wxColour(200, 0, 0));
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_op());
             } else if (user->hop) {
-                m_user_list->SetItemTextColour(i, wxColour(128, 0, 128));
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_halfop());
             } else if (user->voice) {
-                m_user_list->SetItemTextColour(i, wxColour(0, 128, 0));
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_voice());
             } else {
-                m_user_list->SetItemTextColour(i, *wxBLACK);
+                m_user_list->SetItemTextColour(i, wx_darkmode_nick_normal());
             }
             break;
         }

@@ -6,6 +6,7 @@
 
 #include "PluginDialog.h"
 #include "fe-wx.h"
+#include "DarkMode.h"
 
 #include <glib.h>
 #include <wx/filename.h>
@@ -101,6 +102,8 @@ PluginDialog::PluginDialog(wxWindow *parent)
     Centre();
 
     PopulateList();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 PluginDialog::~PluginDialog()

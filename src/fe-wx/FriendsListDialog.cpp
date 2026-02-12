@@ -5,6 +5,7 @@
  */
 
 #include "FriendsListDialog.h"
+#include "DarkMode.h"
 #include "fe-wx.h"
 
 #include <glib.h>
@@ -68,6 +69,8 @@ FriendsListDialog::FriendsListDialog(wxWindow *parent)
     m_btn_dialog->Enable(false);
 
     PopulateList();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 FriendsListDialog::~FriendsListDialog()
@@ -120,7 +123,7 @@ void FriendsListDialog::PopulateList()
 
         /* Color online entries */
         if (online) {
-            m_list->SetItemTextColour(idx, wxColour(0, 128, 0));
+            m_list->SetItemTextColour(idx, wx_darkmode_friend_online());
         }
 
         idx++;

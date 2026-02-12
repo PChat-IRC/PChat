@@ -83,6 +83,7 @@ set(WX_SOURCES
     ChannelListDialog.cpp
     JoinDialog.cpp
     palette.cpp
+    DarkMode.cpp
 )
 
 if(WIN32)
@@ -170,6 +171,7 @@ if(WIN32)
         ole32
         oleaut32
         winmm
+        dwmapi
     )
 endif()
 

@@ -13,6 +13,7 @@
  */
 
 #include "KeyboardShortcutsDialog.h"
+#include "DarkMode.h"
 
 extern "C" {
 #include "../common/pchat.h"
@@ -98,7 +99,7 @@ KeyboardShortcutsDialog::KeyboardShortcutsDialog(wxWindow *parent)
     m_accel_entry = new wxTextCtrl(this, wxID_ANY, "",
                                    wxDefaultPosition, wxDefaultSize,
                                    wxTE_READONLY);
-    m_accel_entry->SetBackgroundColour(wxColour(240, 240, 255));
+    m_accel_entry->SetBackgroundColour(wx_darkmode_accel_entry_bg());
     m_accel_entry->SetHint("Press a key combination...");
     m_accel_entry->Bind(wxEVT_KEY_DOWN, &KeyboardShortcutsDialog::OnAccelKeyDown, this);
     edit_sizer->Add(m_accel_entry, 1, wxEXPAND);
@@ -148,6 +149,8 @@ KeyboardShortcutsDialog::KeyboardShortcutsDialog(wxWindow *parent)
     LoadKeyBindings();
     PopulateList();
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 KeyboardShortcutsDialog::~KeyboardShortcutsDialog()

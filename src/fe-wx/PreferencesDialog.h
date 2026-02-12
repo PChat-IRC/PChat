@@ -61,6 +61,7 @@ private:
     wxPanel *m_current_page = nullptr;
 
     /* ===== Appearance page controls ===== */
+    wxChoice *m_theme_choice;
     wxChoice *m_language;
     wxTextCtrl *m_font_entry;
     wxCheckBox *m_colored_nicks;

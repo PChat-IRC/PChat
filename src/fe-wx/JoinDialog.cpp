@@ -8,6 +8,7 @@
 #include "JoinDialog.h"
 #include "fe-wx.h"
 #include "MainWindow.h"
+#include "DarkMode.h"
 
 #include <wx/artprov.h>
 #include <glib.h>
@@ -124,6 +125,8 @@ JoinDialog::JoinDialog(wxWindow *parent, struct server *serv)
             m_radio_join->SetValue(true);
         }
     }
+
+    wx_darkmode_apply_to_window(this);
 }
 
 JoinDialog::~JoinDialog()

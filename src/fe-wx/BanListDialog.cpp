@@ -7,6 +7,7 @@
 
 #include "BanListDialog.h"
 #include "fe-wx.h"
+#include "DarkMode.h"
 
 #include <wx/clipbrd.h>
 #include <glib.h>
@@ -100,6 +101,8 @@ BanListDialog::BanListDialog(wxWindow *parent, struct session *sess)
 
     /* Initial refresh */
     DoRefresh();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 BanListDialog::~BanListDialog()

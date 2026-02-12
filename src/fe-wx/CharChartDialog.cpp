@@ -6,6 +6,7 @@
 
 #include "CharChartDialog.h"
 #include "MainWindow.h"
+#include "DarkMode.h"
 #include <wx/clipbrd.h>
 
 extern MainWindow *g_main_window;
@@ -82,6 +83,8 @@ CharChartDialog::CharChartDialog(wxWindow *parent)
 
     /* Populate initial block */
     PopulateGrid(0x0020);
+
+    wx_darkmode_apply_to_window(this);
 }
 
 CharChartDialog::~CharChartDialog()

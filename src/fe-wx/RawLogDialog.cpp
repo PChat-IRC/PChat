@@ -5,6 +5,7 @@
  */
 
 #include "RawLogDialog.h"
+#include "DarkMode.h"
 #include "fe-wx.h"
 
 wxBEGIN_EVENT_TABLE(RawLogDialog, wxDialog)
@@ -33,7 +34,7 @@ RawLogDialog::RawLogDialog(wxWindow *parent, struct server *serv)
     wxFont monoFont(10, wxFONTFAMILY_TELETYPE, wxFONTSTYLE_NORMAL,
                      wxFONTWEIGHT_NORMAL);
     m_text->SetFont(monoFont);
-    m_text->SetBackgroundColour(*wxWHITE);
+    m_text->SetBackgroundColour(wx_darkmode_rawlog_bg());
     mainSizer->Add(m_text, 1, wxEXPAND | wxALL, 4);
 
     /* Buttons */
@@ -48,6 +49,8 @@ RawLogDialog::RawLogDialog(wxWindow *parent, struct server *serv)
 
     SetSizer(mainSizer);
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 RawLogDialog::~RawLogDialog()
@@ -59,7 +62,7 @@ RawLogDialog::~RawLogDialog()
 void RawLogDialog::AppendText(const wxString &text, bool outbound)
 {
     m_text->SetDefaultStyle(wxTextAttr(
-        outbound ? wxColour(0, 0, 180) : wxColour(180, 0, 0)));
+        outbound ? wx_darkmode_rawlog_outbound() : wx_darkmode_rawlog_inbound()));
 
     wxString prefix = outbound ? wxT("<< ") : wxT(">> ");
     m_text->AppendText(prefix + text + wxT("\n"));

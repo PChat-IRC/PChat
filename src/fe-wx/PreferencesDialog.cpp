@@ -11,6 +11,7 @@
 #include "PreferencesDialog.h"
 #include "MainWindow.h"
 #include "palette.h"
+#include "DarkMode.h"
 #include "fe-wx.h"
 #include <wx/fontdlg.h>
 #include <wx/filedlg.h>
@@ -52,6 +53,8 @@ PreferencesDialog::PreferencesDialog(wxWindow *parent)
     CreateLayout();
     LoadSettings();
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 PreferencesDialog::~PreferencesDialog()
@@ -237,6 +240,28 @@ wxPanel *PreferencesDialog::CreateAppearancePage(wxWindow *parent)
 
     generalBox->Add(genGrid, 0, wxEXPAND | wxALL, 4);
     sizer->Add(generalBox, 0, wxEXPAND | wxBOTTOM, 8);
+
+    /* Theme / Dark Mode */
+    wxStaticBoxSizer *themeBox = new wxStaticBoxSizer(wxVERTICAL, page,
+                                                       wxT("Theme"));
+    wxWindow *themeParent = themeBox->GetStaticBox();
+    wxBoxSizer *themeRow = new wxBoxSizer(wxHORIZONTAL);
+    themeRow->Add(new wxStaticText(themeParent, wxID_ANY,
+                                    wxT("Appearance:")),
+                  0, wxALIGN_CENTER_VERTICAL | wxRIGHT, 8);
+    m_theme_choice = new wxChoice(themeParent, wxID_ANY);
+    m_theme_choice->Append(wxT("Light"));
+    m_theme_choice->Append(wxT("Dark"));
+    m_theme_choice->Append(wxT("System (auto)"));
+    m_theme_choice->SetSelection((int)wx_darkmode_get_mode());
+    themeRow->Add(m_theme_choice, 0);
+    themeBox->Add(themeRow, 0, wxALL, 4);
+    themeBox->Add(new wxStaticText(themeParent, wxID_ANY,
+        wxT("Changing the theme will reload default palette colors.\n"
+            "Custom color changes in the Colors page will be preserved\n"
+            "after saving.")),
+        0, wxLEFT | wxBOTTOM, 4);
+    sizer->Add(themeBox, 0, wxEXPAND | wxBOTTOM, 8);
 
     /* Text Box */
     wxStaticBoxSizer *textBox = new wxStaticBoxSizer(wxVERTICAL, page,
@@ -1861,6 +1886,23 @@ void PreferencesDialog::SaveSettings()
 void PreferencesDialog::OnOK(wxCommandEvent &event)
 {
     SaveSettings();
+
+    /* Check if theme was changed */
+    int newTheme = m_theme_choice->GetSelection();
+    ThemeMode newMode = (ThemeMode)newTheme;
+    bool themeChanged = (newMode != wx_darkmode_get_mode());
+
+    if (themeChanged) {
+        wx_darkmode_set_mode(newMode);
+        wx_darkmode_save();
+
+        /* Re-initialize palette with new theme defaults, then re-load
+           any user customizations from colors.conf on top */
+        wx_palette_init_for_theme(wx_darkmode_is_dark());
+        wx_palette_load();
+        m_colors_changed = true;  /* force re-render */
+    }
+
     if (m_colors_changed && g_main_window)
         g_main_window->ApplyPaletteColors();
 

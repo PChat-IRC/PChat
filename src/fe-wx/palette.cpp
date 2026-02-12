@@ -5,6 +5,7 @@
  */
 
 #include "palette.h"
+#include "DarkMode.h"
 
 #include <wx/colour.h>
 #include <wx/gdicmn.h>
@@ -78,6 +79,57 @@ static const unsigned short default_colors[][3] = {
     {0xa4a4, 0x0000, 0x0000}, /* 41 spell checker color (red) */
 };
 
+/* ---- Dark-mode default palette ---- */
+static const unsigned short dark_default_colors[][3] = {
+    /* mIRC colors 0-15 — brighter for readability on dark background */
+    {0xd3d3, 0xd7d7, 0xcfcf}, /*  0 white */
+    {0x9090, 0x9090, 0x9090}, /*  1 black (lightened for visibility) */
+    {0x6060, 0x9090, 0xd0d0}, /*  2 blue */
+    {0x6060, 0xb0b0, 0x3030}, /*  3 green */
+    {0xf0f0, 0x5050, 0x5050}, /*  4 red */
+    {0xc0c0, 0x6060, 0x3030}, /*  5 light red */
+    {0x9090, 0x6060, 0xa0a0}, /*  6 purple */
+    {0xe0e0, 0x8080, 0x3030}, /*  7 orange */
+    {0xd0d0, 0xb0b0, 0x3030}, /*  8 yellow */
+    {0x8080, 0xe0e0, 0x4040}, /*  9 green */
+    {0x3030, 0xc0c0, 0x9090}, /* 10 aqua */
+    {0x7070, 0xb8b8, 0xb0b0}, /* 11 light aqua */
+    {0x7070, 0x9898, 0xc0c0}, /* 12 blue */
+    {0xc0c0, 0x7070, 0x9090}, /* 13 light purple */
+    {0x8080, 0x8080, 0x8080}, /* 14 grey */
+    {0xb0b0, 0xb0b0, 0xb0b0}, /* 15 light grey */
+
+    /* Local/extended colors 16-31 */
+    {0xd3d3, 0xd7d7, 0xcfcf}, /* 16 white */
+    {0x9090, 0x9090, 0x9090}, /* 17 black */
+    {0x6060, 0x9090, 0xd0d0}, /* 18 blue */
+    {0x6060, 0xb0b0, 0x3030}, /* 19 green */
+    {0xf0f0, 0x5050, 0x5050}, /* 20 red */
+    {0xc0c0, 0x6060, 0x3030}, /* 21 light red */
+    {0x9090, 0x6060, 0xa0a0}, /* 22 purple */
+    {0xe0e0, 0x8080, 0x3030}, /* 23 orange */
+    {0xd0d0, 0xb0b0, 0x3030}, /* 24 yellow */
+    {0x8080, 0xe0e0, 0x4040}, /* 25 green */
+    {0x3030, 0xc0c0, 0x9090}, /* 26 aqua */
+    {0x7070, 0xb8b8, 0xb0b0}, /* 27 light aqua */
+    {0x7070, 0x9898, 0xc0c0}, /* 28 blue */
+    {0xc0c0, 0x7070, 0x9090}, /* 29 light purple */
+    {0x8080, 0x8080, 0x8080}, /* 30 grey */
+    {0xb0b0, 0xb0b0, 0xb0b0}, /* 31 light grey */
+
+    /* Special colors 32-41 — dark mode */
+    {0xd0d0, 0xd0d0, 0xd0d0}, /* 32 marktext Fore (light) */
+    {0x3030, 0x5050, 0x7070}, /* 33 marktext Back (muted blue) */
+    {0xdcdc, 0xdcdc, 0xdcdc}, /* 34 foreground (light) */
+    {0x2020, 0x2020, 0x2020}, /* 35 background (dark) */
+    {0xffff, 0x6060, 0x6060}, /* 36 marker line (soft red) */
+    {0x6464, 0x9595, 0xeded}, /* 37 tab New Data (cornflower blue) */
+    {0x6464, 0xdcdc, 0x6464}, /* 38 tab Nick Mentioned (green) */
+    {0xffff, 0x6464, 0x6464}, /* 39 tab New Message (soft red) */
+    {0x9090, 0x9090, 0x9090}, /* 40 away user (grey) */
+    {0xffff, 0x5050, 0x5050}, /* 41 spell checker color (red) */
+};
+
 /* Palette storage — 16-bit per channel, 42 entries */
 static unsigned short palette_r[NUM_COLORS];
 static unsigned short palette_g[NUM_COLORS];
@@ -91,19 +143,62 @@ wx_palette_init(void)
         return;
     palette_initialized = true;
 
+    /* Choose defaults based on current dark mode state */
+    bool dark = wx_darkmode_is_dark();
+    const unsigned short (*colors)[3] = dark ? dark_default_colors : default_colors;
+
     for (int i = 0; i < NUM_COLORS; i++) {
-        if (i == COL_BG) {
+        if (dark) {
+            /* Dark palette: colors are already tuned for dark bg, no dimming */
+            palette_r[i] = colors[i][0];
+            palette_g[i] = colors[i][1];
+            palette_b[i] = colors[i][2];
+        } else if (i == COL_BG) {
             /* Keep background at full brightness */
-            palette_r[i] = default_colors[i][0];
-            palette_g[i] = default_colors[i][1];
-            palette_b[i] = default_colors[i][2];
+            palette_r[i] = colors[i][0];
+            palette_g[i] = colors[i][1];
+            palette_b[i] = colors[i][2];
         } else {
             /* Darken other colors by 0.7 to match GTK3 palette_alloc() */
-            palette_r[i] = (unsigned short)(default_colors[i][0] * 0.7);
-            palette_g[i] = (unsigned short)(default_colors[i][1] * 0.7);
-            palette_b[i] = (unsigned short)(default_colors[i][2] * 0.7);
+            palette_r[i] = (unsigned short)(colors[i][0] * 0.7);
+            palette_g[i] = (unsigned short)(colors[i][1] * 0.7);
+            palette_b[i] = (unsigned short)(colors[i][2] * 0.7);
         }
     }
+}
+
+void
+wx_palette_init_for_theme(bool dark)
+{
+    /* Force re-initialization with the given theme */
+    palette_initialized = false;
+
+    const unsigned short (*colors)[3] = dark ? dark_default_colors : default_colors;
+
+    for (int i = 0; i < NUM_COLORS; i++) {
+        if (dark) {
+            palette_r[i] = colors[i][0];
+            palette_g[i] = colors[i][1];
+            palette_b[i] = colors[i][2];
+        } else if (i == COL_BG) {
+            palette_r[i] = colors[i][0];
+            palette_g[i] = colors[i][1];
+            palette_b[i] = colors[i][2];
+        } else {
+            palette_r[i] = (unsigned short)(colors[i][0] * 0.7);
+            palette_g[i] = (unsigned short)(colors[i][1] * 0.7);
+            palette_b[i] = (unsigned short)(colors[i][2] * 0.7);
+        }
+    }
+
+    palette_initialized = true;
+}
+
+/* Return the config filename for the current theme */
+static const char *
+palette_config_file(void)
+{
+    return wx_darkmode_is_dark() ? "colors-dark.conf" : "colors.conf";
 }
 
 void
@@ -111,7 +206,8 @@ wx_palette_load(void)
 {
     wx_palette_init();
 
-    int fh = pchat_open_file("colors.conf", O_RDONLY, 0, 0);
+    const char *fname = palette_config_file();
+    int fh = pchat_open_file(fname, O_RDONLY, 0, 0);
     if (fh == -1)
         return;
 
@@ -157,7 +253,8 @@ wx_palette_load(void)
 void
 wx_palette_save(void)
 {
-    int fh = pchat_open_file("colors.conf",
+    const char *fname = palette_config_file();
+    int fh = pchat_open_file(fname,
                               O_TRUNC | O_WRONLY | O_CREAT, 0600, XOF_DOMODE);
     if (fh == -1)
         return;

@@ -11,6 +11,7 @@
  */
 
 #include "EditListDialog.h"
+#include "DarkMode.h"
 
 extern "C" {
 #include "../common/pchat.h"
@@ -111,6 +112,8 @@ EditListDialog::EditListDialog(wxWindow *parent,
 
     PopulateList();
     Centre();
+
+    wx_darkmode_apply_to_window(this);
 }
 
 EditListDialog::~EditListDialog()

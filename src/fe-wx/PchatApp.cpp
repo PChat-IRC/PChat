@@ -7,6 +7,7 @@
 #include "PchatApp.h"
 #include "MainWindow.h"
 #include "palette.h"
+#include "DarkMode.h"
 #include "fe-wx.h"
 
 #include <wx/image.h>
@@ -48,6 +49,17 @@ bool PchatApp::OnInit()
     /* Register only the PNG image handler — the only format we use.
        wxInitAllImageHandlers() loads every codec and is slower. */
     wxImage::AddHandler(new wxPNGHandler);
+
+    /* Initialize dark mode subsystem and load saved preference.
+       Must be done before palette_init so the palette picks the
+       correct default colors (light or dark). */
+    wx_darkmode_init();
+    wx_darkmode_load();
+
+    /* Use wxWidgets 3.3 built-in dark mode support for native controls,
+       menus, title bars, scrollbars, etc.  This must be called before
+       any windows are created. */
+    wx_darkmode_enable_wx(this);
 
     /* Initialize and load the color palette from colors.conf */
     wx_palette_init();
