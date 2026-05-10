@@ -1988,7 +1988,7 @@ cmd_gate (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	if (*server_name)
 	{
 		char *port = word[3];
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		serv->use_ssl = FALSE;
 #endif
 		server_fill_her_up (serv);
@@ -3250,7 +3250,7 @@ cmd_reconnect (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	{
 		int offset = 0;
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		int use_ssl = TRUE;
 		int use_ssl_noverify = FALSE;
 		if (g_strcmp0 (word[2], "-ssl") == 0)
@@ -3399,7 +3399,7 @@ static int
 parse_irc_url (char *url, char *server_name[], char *port[], char *channel[], char *key[], int *use_ssl)
 {
 	char *co;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (g_ascii_strncasecmp ("ircs://", url, 7) == 0)
 	{
 		*use_ssl = TRUE;
@@ -3411,7 +3411,7 @@ parse_irc_url (char *url, char *server_name[], char *port[], char *channel[], ch
 	if (g_ascii_strncasecmp ("irc://", url, 6) == 0)
 	{
 		*server_name = url + 6;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 urlserv:
 #endif
 		/* check for port */
@@ -3457,7 +3457,7 @@ cmd_server (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	char *pass = NULL;
 	char *channel = NULL;
 	char *key = NULL;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	int use_ssl = TRUE;
 	int use_ssl_noverify = FALSE;
 #else
@@ -3467,7 +3467,7 @@ cmd_server (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	server *serv = sess->server;
 	ircnet *net = NULL;
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	/* BitchX uses -ssl, mIRC uses -e, let's support both */
 	if (g_strcmp0 (word[2], "-ssl") == 0 || g_strcmp0 (word[2], "-e") == 0)
 	{
@@ -3521,14 +3521,14 @@ cmd_server (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	if (port[0] == '+')
 	{
 		port++;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		use_ssl = TRUE;
 #endif
 	}
 	else if (port[0] == '-')
 	{
 		port++;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		use_ssl = FALSE;
 #endif
 	}
@@ -3554,7 +3554,7 @@ cmd_server (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 		}
 	}
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	serv->use_ssl = use_ssl;
 	serv->accept_invalid_cert = use_ssl_noverify;
 #endif
@@ -3586,7 +3586,7 @@ cmd_servchan (struct session *sess, char *tbuf, char *word[],
 {
 	int offset = 0;
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (g_strcmp0 (word[2], "-ssl") == 0 || g_strcmp0 (word[2], "-ssl-noverify") == 0 || g_strcmp0 (word[2], "-insecure") == 0)
 		offset++;
 #endif
@@ -4107,7 +4107,7 @@ const struct commands xc_cmds[] = {
 	 N_("QUIT [<reason>], disconnects from the current server")},
 	{"QUOTE", cmd_quote, 1, 0, 1,
 	 N_("QUOTE <text>, sends the text in raw form to the server")},
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"RECONNECT", cmd_reconnect, 0, 0, 1,
 	 N_("RECONNECT [-ssl|-ssl-noverify] [<host>] [<port>] [<password>], Can be called just as /RECONNECT to reconnect to the current server or with /RECONNECT ALL to reconnect to all the open servers")},
 #else
@@ -4119,14 +4119,14 @@ const struct commands xc_cmds[] = {
 	{"SAY", cmd_say, 0, 0, 1,
 	 N_("SAY <text>, sends the text to the object in the current window")},
 	{"SEND", cmd_send, 0, 0, 1, N_("SEND <nick> [<file>]")},
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"SERVCHAN", cmd_servchan, 0, 0, 1,
 	 N_("SERVCHAN [-insecure|-ssl|-ssl-noverify] <host> <port> <channel>, connects and joins a channel using ssl unless otherwise specified")},
 #else
 	{"SERVCHAN", cmd_servchan, 0, 0, 1,
 	 N_("SERVCHAN <host> <port> <channel>, connects and joins a channel")},
 #endif
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"SERVER", cmd_server, 0, 0, 1,
 	 N_("SERVER [-insecure|-ssl|-ssl-noverify] <host> [<port>] [<password>], connects to a server using ssl unless otherwise specified, the default port is 6697 for ssl connections and 6667 for insecure connections")},
 #else

@@ -1,5 +1,6 @@
-/* HexChat
+/* PChat
  * Copyright (C) 2023 Patrick Okraku
+ * Copyright (C) 2026 PChat-IRC contributors.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +20,15 @@
 #define PCHAT_SCRAM_H
 
 #include "config.h"
-#ifdef USE_OPENSSL
-#include <openssl/evp.h>
+
+#ifdef USE_SSL
+
+#include <stddef.h>
+#include "pchat_crypto.h"
 
 typedef struct
 {
-	const EVP_MD *digest;
+	pchat_hash_alg digest;
 	size_t digest_size;
 	char *username;
 	char *password;
@@ -43,9 +47,9 @@ typedef enum
 	SCRAM_SUCCESS
 } scram_status;
 
-scram_session *scram_session_create (const char *digset, const char *username, const char *password);
+scram_session *scram_session_create (const char *digest, const char *username, const char *password);
 void scram_session_free (scram_session *session);
 scram_status scram_process (scram_session *session, const char *input, char **output, size_t *output_len);
 
-#endif
+#endif /* USE_SSL */
 #endif

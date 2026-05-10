@@ -36,13 +36,15 @@ if(WIN32)
     target_include_directories(pchatcommon PRIVATE sysinfo)
 endif()
 
-# OpenSSL support
-if(ENABLE_OPENSSL)
-    target_sources(pchatcommon PRIVATE ssl.c)
-    # Make OpenSSL include directories PUBLIC so they're available to all targets linking pchatcommon
+# TLS / crypto backend
+if(PCHAT_SSL_BACKEND STREQUAL "openssl")
+    target_sources(pchatcommon PRIVATE ssl_openssl.c pchat_crypto_openssl.c)
     target_include_directories(pchatcommon PUBLIC ${OPENSSL_INCLUDE_DIRS})
     target_link_libraries(pchatcommon PUBLIC ${OPENSSL_LIBRARIES})
     target_link_directories(pchatcommon PUBLIC ${OPENSSL_LIBRARY_DIRS})
+elseif(PCHAT_SSL_BACKEND STREQUAL "schannel")
+    target_sources(pchatcommon PRIVATE ssl_schannel.c pchat_crypto_schannel.c)
+    target_link_libraries(pchatcommon PUBLIC ${SCHANNEL_LIBRARIES})
 endif()
 
 # Compile definitions

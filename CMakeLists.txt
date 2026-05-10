@@ -12,7 +12,41 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 # Options
 option(ENABLE_IPV6 "Enable IPv6 support" ON)
-option(ENABLE_OPENSSL "Enable OpenSSL support" ON)
+
+# TLS/SSL backend selection.
+#   openssl  - use OpenSSL (default on non-Windows)
+#   schannel - use Windows Schannel / CNG (default on Windows)
+#   none/off - disable TLS support entirely
+if(WIN32)
+    set(_PCHAT_DEFAULT_SSL "schannel")
+else()
+    set(_PCHAT_DEFAULT_SSL "openssl")
+endif()
+set(ENABLE_SSL "${_PCHAT_DEFAULT_SSL}" CACHE STRING
+    "TLS backend to use: openssl, schannel, or none/off")
+set_property(CACHE ENABLE_SSL PROPERTY STRINGS openssl schannel none off OFF)
+
+# Normalise to lowercase
+string(TOLOWER "${ENABLE_SSL}" _enable_ssl_lc)
+if(_enable_ssl_lc STREQUAL "off" OR _enable_ssl_lc STREQUAL "none" OR _enable_ssl_lc STREQUAL "")
+    set(PCHAT_SSL_BACKEND "none")
+elseif(_enable_ssl_lc STREQUAL "openssl")
+    set(PCHAT_SSL_BACKEND "openssl")
+elseif(_enable_ssl_lc STREQUAL "schannel")
+    if(NOT WIN32)
+        message(FATAL_ERROR "ENABLE_SSL=schannel is only supported on Windows.")
+    endif()
+    set(PCHAT_SSL_BACKEND "schannel")
+else()
+    message(FATAL_ERROR "Invalid ENABLE_SSL value: '${ENABLE_SSL}'. Use openssl, schannel, or none.")
+endif()
+
+# Reject the legacy flag with a clear message.
+if(DEFINED ENABLE_OPENSSL)
+    message(FATAL_ERROR
+        "ENABLE_OPENSSL has been removed. Use -DENABLE_SSL=openssl or -DENABLE_SSL=schannel (or none).")
+endif()
+
 option(ENABLE_GTKFE "Build GTK3 frontend" ON)
 option(ENABLE_TEXTFE "Build text frontend" OFF)
 option(ENABLE_PYTHON "Build Python plugin" OFF)
@@ -69,13 +103,22 @@ if(ENABLE_GTKFE)
     pkg_get_variable(GTK3_PREFIX gtk+-3.0 prefix)
 endif()
 
-# Optional dependencies
-if(ENABLE_OPENSSL)
+# TLS backend dependencies
+if(PCHAT_SSL_BACKEND STREQUAL "openssl")
     pkg_check_modules(OPENSSL REQUIRED openssl)
     if(OPENSSL_FOUND)
+        set(USE_SSL 1)
         set(USE_OPENSSL 1)
         message(STATUS "Found OpenSSL: ${OPENSSL_INCLUDE_DIRS}")
     endif()
+elseif(PCHAT_SSL_BACKEND STREQUAL "schannel")
+    set(USE_SSL 1)
+    set(USE_SCHANNEL 1)
+    # Schannel/CNG come with the Windows SDK; no pkg-config needed.
+    set(SCHANNEL_LIBRARIES secur32 crypt32 bcrypt ncrypt ws2_32)
+    message(STATUS "Using Schannel TLS backend (Windows native)")
+else()
+    message(STATUS "TLS support disabled (ENABLE_SSL=none)")
 endif()
 
 if(ENABLE_DBUS)
@@ -236,7 +279,7 @@ message(STATUS "PChat ${PROJECT_VERSION} configuration summary:")
 message(STATUS "")
 message(STATUS "  Installation prefix: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "  IPv6 support: ${ENABLE_IPV6}")
-message(STATUS "  OpenSSL support: ${ENABLE_OPENSSL}")
+message(STATUS "  TLS backend: ${PCHAT_SSL_BACKEND}")
 message(STATUS "  GTK3 frontend: ${ENABLE_GTKFE}")
 message(STATUS "  Text frontend: ${ENABLE_TEXTFE}")
 message(STATUS "  Plugin support: ${ENABLE_PLUGIN}")

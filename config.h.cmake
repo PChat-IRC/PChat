@@ -20,8 +20,10 @@
 #define XCHATSHAREDIR "@PCHAT_SHAREDIR@"
 #define ISO_CODES_LOCALEDIR "@ISO_CODES_LOCALEDIR@"
 
-/* Optional features */
+/* TLS / cryptography backend */
+#cmakedefine USE_SSL 1
 #cmakedefine USE_OPENSSL 1
+#cmakedefine USE_SCHANNEL 1
 #cmakedefine USE_IPV6 1
 #cmakedefine USE_PLUGIN 1
 #cmakedefine USE_GMODULE 1

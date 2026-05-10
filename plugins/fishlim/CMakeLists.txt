@@ -5,7 +5,18 @@ project(pchat-fishlim C)
 # Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
-pkg_check_modules(OPENSSL REQUIRED openssl)
+
+# fishlim has its own OpenSSL dependency for Diffie-Hellman 1080-bit key
+# exchange. This is independent of the main application's TLS backend
+# (PCHAT_SSL_BACKEND); BCrypt cannot perform DH1080 because Windows CNG
+# requires DH key sizes to be a multiple of 64 bits.
+pkg_check_modules(OPENSSL openssl)
+if(NOT OPENSSL_FOUND)
+    message(WARNING
+        "fishlim plugin requested but OpenSSL was not found via pkg-config. "
+        "Skipping. Install OpenSSL development headers to enable fishlim.")
+    return()
+endif()
 
 # Plugin source files
 set(PLUGIN_SOURCES

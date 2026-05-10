@@ -59,7 +59,7 @@ static const struct defaultserver def[] =
 	{0,			"irc.afternet.org"},
 
 	{"Aitvaras",	0},
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{0,			"irc.data.lt/+6668"},
 	{0,			"irc.omicron.lt/+6668"},
 	{0,			"irc.vub.lt/+6668"},
@@ -106,7 +106,7 @@ static const struct defaultserver def[] =
 	{"DarkMyst", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.darkmyst.org"},
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"darkscience", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.darkscience.net"},
 	{0,			"irc.drk.sc"},
@@ -119,7 +119,7 @@ static const struct defaultserver def[] =
 	{"DigitalIRC", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.digitalirc.org"},
 	
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"DosersNET", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.dosers.net/+6697"},
 #endif
@@ -165,12 +165,12 @@ static const struct defaultserver def[] =
 	{0,			"irc.gnome.org"},
 
 	{"GlobalGamers", 0},
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{0,			"irc.globalgamers.net/+6660"},
 #endif
 	{0,			"irc.globalgamers.net"},
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"hackint", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.hackint.org"},
 	{0,			"irc.eu.hackint.org"},
@@ -204,7 +204,7 @@ static const struct defaultserver def[] =
 	{"Libera.Chat", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.libera.chat"},
 	
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"LibertaCasa", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.liberta.casa"},
 #endif
@@ -213,7 +213,7 @@ static const struct defaultserver def[] =
 	/* Self signed */
 	{0,			"irc.librairc.net"},
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"LinkNet",	0},
 	{0,			"irc.link-net.org/+7000"},
 #endif
@@ -317,7 +317,7 @@ static const struct defaultserver def[] =
 	{0,			"i.valware.uk"},
 	
 	
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	{"TripSit", 0, 0, 0, LOGIN_SASL, 0, TRUE},
 	{0,			"irc.tripsit.me"},
 	{0,			"newirc.tripsit.me"},
@@ -414,7 +414,7 @@ servlist_connect (session *sess, ircnet *net, gboolean join)
 
 	serv->dont_use_proxy = (net->flags & FLAG_USE_PROXY) ? FALSE : TRUE;
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	serv->use_ssl = (net->flags & FLAG_USE_SSL) ? TRUE : FALSE;
 	serv->accept_invalid_cert =
 		(net->flags & FLAG_ALLOW_INVALID) ? TRUE : FALSE;
@@ -430,7 +430,7 @@ servlist_connect (session *sess, ircnet *net, gboolean join)
 		/* support "+port" to indicate SSL (like mIRC does) */
 		if (port[1] == '+')
 		{
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 			serv->use_ssl = TRUE;
 #endif
 			serv->connect (serv, ircserv->hostname, atoi (port + 2), FALSE);
@@ -886,7 +886,7 @@ servlist_net_add (char *name, char *comment, int prepend)
 	net = g_new0 (ircnet, 1);
 	net->name = g_strdup (name);
 	net->flags = FLAG_CYCLE | FLAG_USE_GLOBAL | FLAG_USE_PROXY;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	net->flags |= FLAG_USE_SSL;
 #endif
 

@@ -56,15 +56,8 @@
 #include "servlist.h"
 #include "server.h"
 
-#ifdef USE_OPENSSL
-#include <openssl/ssl.h>		  /* SSL_() */
-#include <openssl/err.h>		  /* ERR_() */
+#ifdef USE_SSL
 #include "ssl.h"
-#endif
-
-#ifdef USE_OPENSSL
-/* local variables */
-static struct session *g_sess = NULL;
 #endif
 
 static GSList *away_list = NULL;
@@ -95,11 +88,11 @@ tcp_send_real (void *ssl, int sok, GIConv write_converter, char *buf, int len)
 
 	gsize buf_encoded_len;
 	gchar *buf_encoded = text_convert_invalid (buf, len, write_converter, arbitrary_encoding_fallback_string, &buf_encoded_len);
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (!ssl)
 		ret = send (sok, buf_encoded, buf_encoded_len, 0);
 	else
-		ret = _SSL_send (ssl, buf_encoded, buf_encoded_len);
+		ret = pchat_ssl_send ((pchat_ssl *) ssl, buf_encoded, buf_encoded_len);
 #else
 	ret = send (sok, buf_encoded, buf_encoded_len, 0);
 #endif
@@ -307,13 +300,13 @@ server_read (GIOChannel *source, GIOCondition condition, server *serv)
 
 	while (1)
 	{
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		if (!serv->ssl)
 #endif
 			len = recv (sok, lbuf, sizeof (lbuf) - 2, 0);
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		else
-			len = _SSL_recv (serv->ssl, lbuf, sizeof (lbuf) - 2);
+			len = pchat_ssl_recv (serv->ssl, lbuf, sizeof (lbuf) - 2);
 #endif
 		if (len < 1)
 		{
@@ -457,7 +450,7 @@ server_stopconnecting (server * serv)
 	}
 #endif
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (serv->ssl_do_connect_tag)
 	{
 		fe_timeout_remove (serv->ssl_do_connect_tag);
@@ -471,94 +464,44 @@ server_stopconnecting (server * serv)
 	fe_server_event (serv, FE_SE_DISCONNECT, 0);
 }
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 #define	SSLTMOUT	90				  /* seconds */
-static void
-ssl_cb_info (SSL * s, int where, int ret)
-{
-	/* SSL debug info callback - disabled by default as it's very verbose.
-	 * To enable, uncomment the code below and the EMIT_SIGNAL call.
-	 * Could be made configurable via prefs.pchat_net_ssl_debug in the future.
-	 */
-	(void)s; (void)where; (void)ret;  /* suppress unused parameter warnings */
-	return;
-
-/*	char buf[128];
-	g_snprintf (buf, sizeof (buf), "%s (%d)", SSL_state_string_long (s), where);
-	if (g_sess)
-		EMIT_SIGNAL (XP_TE_SSLMESSAGE, g_sess, buf, NULL, NULL, NULL, 0);
-	else
-		fprintf (stderr, "%s\n", buf);*/
-}
-
-static int
-ssl_cb_verify (int ok, X509_STORE_CTX * ctx)
-{
-	char subject[256];
-	char issuer[256];
-	char buf[512];
-	X509 *current_cert = X509_STORE_CTX_get_current_cert (ctx);
-
-	if (!current_cert)
-		return TRUE;
-
-	X509_NAME_oneline (X509_get_subject_name (current_cert),
-	                   subject, sizeof (subject));
-	X509_NAME_oneline (X509_get_issuer_name (current_cert),
-	                   issuer, sizeof (issuer));
-
-	g_snprintf (buf, sizeof (buf), "* Subject: %s", subject);
-	EMIT_SIGNAL (XP_TE_SSLMESSAGE, g_sess, buf, NULL, NULL, NULL, 0);
-	g_snprintf (buf, sizeof (buf), "* Issuer: %s", issuer);
-	EMIT_SIGNAL (XP_TE_SSLMESSAGE, g_sess, buf, NULL, NULL, NULL, 0);
-
-	return TRUE;
-}
 
 static int
 ssl_do_connect (server * serv)
 {
-	char buf[256]; // ERR_error_string() MUST have this size
+	char buf[512];
+	char err[256];
+	int wrong_version = 0;
+	pchat_ssl_handshake_status status;
 
-	g_sess = serv->server_session;
+	status = pchat_ssl_do_handshake (serv->ssl, err, sizeof (err), &wrong_version);
 
-	/* Set SNI hostname before connect */
-	SSL_set_tlsext_host_name(serv->ssl, serv->hostname);
-
-	if (SSL_connect (serv->ssl) <= 0)
+	if (status == PCHAT_SSL_HANDSHAKE_FAILED)
 	{
-		char err_buf[128];
-		int err;
+		g_snprintf (buf, sizeof (buf), "%s", err);
+		EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, buf, NULL,
+						 NULL, NULL, 0);
 
-		g_sess = NULL;
-		if ((err = ERR_get_error ()) > 0)
-		{
-			ERR_error_string (err, err_buf);
-			g_snprintf (buf, sizeof (buf), "(%d) %s", err, err_buf);
-			EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, buf, NULL,
-							 NULL, NULL, 0);
+		if (wrong_version)
+			PrintText (serv->server_session, _("Are you sure this is a SSL capable server and port?\n"));
 
-			if (ERR_GET_REASON (err) == SSL_R_WRONG_VERSION_NUMBER)
-				PrintText (serv->server_session, _("Are you sure this is a SSL capable server and port?\n"));
+		server_cleanup (serv);
 
-			server_cleanup (serv);
+		if (prefs.pchat_net_auto_reconnectonfail)
+			auto_reconnect (serv, FALSE, -1);
 
-			if (prefs.pchat_net_auto_reconnectonfail)
-				auto_reconnect (serv, FALSE, -1);
-
-			return (0);				  /* remove it (0) */
-		}
+		return (0);				  /* remove it (0) */
 	}
-	g_sess = NULL;
 
-	if (SSL_is_init_finished (serv->ssl))
+	if (status == PCHAT_SSL_HANDSHAKE_DONE)
 	{
 		struct cert_info cert_info;
 		struct chiper_info *chiper_info;
-		int verify_error;
+		pchat_ssl_verify_result vr;
 		int i;
 
-		if (!_SSL_get_cert_info (&cert_info, serv->ssl))
+		if (!pchat_ssl_get_cert_info (&cert_info, serv->ssl))
 		{
 			g_snprintf (buf, sizeof (buf), "* Certification info:");
 			EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
@@ -585,29 +528,22 @@ ssl_do_connect (server * serv)
 						 cert_info.algorithm, cert_info.algorithm_bits);
 			EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
 							 NULL, 0);
-			/*if (cert_info.rsa_tmp_bits)
-			{
-				g_snprintf (buf, sizeof (buf),
-							 "  Public key algorithm uses ephemeral key with %d bits",
-							 cert_info.rsa_tmp_bits);
-				EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
-								 NULL, 0);
-			}*/
 			g_snprintf (buf, sizeof (buf), "  Sign algorithm %s",
-						 cert_info.sign_algorithm/*, cert_info.sign_algorithm_bits*/);
+						 cert_info.sign_algorithm);
 			EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
 							 NULL, 0);
 			g_snprintf (buf, sizeof (buf), "  Valid since %s to %s",
 						 cert_info.notbefore, cert_info.notafter);
 			EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
 							 NULL, 0);
-		} else
+		}
+		else
 		{
 			g_snprintf (buf, sizeof (buf), "No Certificate");
 			goto conn_fail;
 		}
 
-		chiper_info = _SSL_get_cipher_info (serv->ssl);	/* static buffer */
+		chiper_info = pchat_ssl_get_cipher_info (serv->ssl);	/* static buffer */
 		g_snprintf (buf, sizeof (buf), "* Cipher info:");
 		EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL, NULL,
 						 0);
@@ -617,44 +553,20 @@ ssl_do_connect (server * serv)
 		EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL, NULL,
 						 0);
 
-		verify_error = SSL_get_verify_result (serv->ssl);
-		switch (verify_error)
+		pchat_ssl_get_verify_result (serv->ssl, serv->hostname, &vr);
+		if (vr.verified)
 		{
-		case X509_V_OK:
-			{
-				X509 *cert = SSL_get_peer_certificate (serv->ssl);
-				int hostname_err;
-				if ((hostname_err = _SSL_check_hostname(cert, serv->hostname)) != 0)
-				{
-					g_snprintf (buf, sizeof (buf), "* Verify E: Failed to validate hostname? (%d)%s",
-							 hostname_err, serv->accept_invalid_cert ? " -- Ignored" : "");
-					if (serv->accept_invalid_cert)
-						EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL, NULL, 0);
-					else
-						goto conn_fail;
-				}
-				break;
-			}
-			/* g_snprintf (buf, sizeof (buf), "* Verify OK (?)"); */
-			/* EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL, NULL, 0); */
-		case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
-		case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
-		case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
-		case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
-		case X509_V_ERR_CERT_HAS_EXPIRED:
-			if (serv->accept_invalid_cert)
-			{
-				g_snprintf (buf, sizeof (buf), "* Verify E: %s.? (%d) -- Ignored",
-							 X509_verify_cert_error_string (verify_error),
-							 verify_error);
-				EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
-								 NULL, 0);
-				break;
-			}
-		default:
-			g_snprintf (buf, sizeof (buf), "%s.? (%d)",
-						 X509_verify_cert_error_string (verify_error),
-						 verify_error);
+			/* OK */
+		}
+		else if (vr.recoverable && serv->accept_invalid_cert)
+		{
+			g_snprintf (buf, sizeof (buf), "* Verify E: %s -- Ignored", vr.error);
+			EMIT_SIGNAL (XP_TE_SSLMESSAGE, serv->server_session, buf, NULL, NULL,
+							 NULL, 0);
+		}
+		else
+		{
+			g_snprintf (buf, sizeof (buf), "%s", vr.error);
 conn_fail:
 			EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, buf, NULL, NULL,
 							 NULL, 0);
@@ -670,24 +582,23 @@ conn_fail:
 		server_connected (serv);
 
 		return (0);					  /* remove it (0) */
-	} else
-	{
-		SSL_SESSION *session = SSL_get_session (serv->ssl);
-		if (session && SSL_SESSION_get_time_ex (session) + SSLTMOUT < time (NULL))
-		{
-			g_snprintf (buf, sizeof (buf), "SSL handshake timed out");
-			EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, buf, NULL,
-							 NULL, NULL, 0);
-			server_cleanup (serv); /* ->connecting = FALSE */
-
-			if (prefs.pchat_net_auto_reconnectonfail)
-				auto_reconnect (serv, FALSE, -1);
-
-			return (0);				  /* remove it (0) */
-		}
-
-		return (1);					  /* call it more (1) */
 	}
+
+	/* PCHAT_SSL_HANDSHAKE_PENDING */
+	if (pchat_ssl_handshake_timed_out (serv->ssl, SSLTMOUT))
+	{
+		g_snprintf (buf, sizeof (buf), "SSL handshake timed out");
+		EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, buf, NULL,
+						 NULL, NULL, 0);
+		server_cleanup (serv); /* ->connecting = FALSE */
+
+		if (prefs.pchat_net_auto_reconnectonfail)
+			auto_reconnect (serv, FALSE, -1);
+
+		return (0);				  /* remove it (0) */
+	}
+
+	return (1);					  /* call it more (1) */
 }
 #endif
 
@@ -768,25 +679,29 @@ server_flush_queue (server *serv)
 static void
 server_connect_success (server *serv)
 {
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 #define	SSLDOCONNTMOUT	300
 	if (serv->use_ssl)
 	{
-		char *err;
+		const char *err;
 
 		/* it'll be a memory leak, if connection isn't terminated by
 		   server_cleanup() */
-		if ((err = _SSL_set_verify (serv->ctx, ssl_cb_verify)))
+		if ((err = pchat_ssl_ctx_set_verify (serv->ctx)))
 		{
-			EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, err, NULL,
+			EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session, (char *) err, NULL,
 							 NULL, NULL, 0);
 			server_cleanup (serv);	/* ->connecting = FALSE */
 			return;
 		}
-		serv->ssl = _SSL_socket (serv->ctx, serv->sok);
-		/* Note: STARTTLS (STLS) support could be added here for servers
-		   that require upgrading a plain connection to TLS. Most modern
-		   servers use dedicated TLS ports instead. */
+		serv->ssl = pchat_ssl_new (serv->ctx, serv->sok, serv->hostname);
+		if (!serv->ssl)
+		{
+			EMIT_SIGNAL (XP_TE_CONNFAIL, serv->server_session,
+							 (char *) "Failed to create TLS session", NULL, NULL, NULL, 0);
+			server_cleanup (serv);
+			return;
+		}
 		set_nonblocking (serv->sok);
 		serv->ssl_do_connect_tag = fe_timeout_add (SSLDOCONNTMOUT,
 																 ssl_do_connect, serv);
@@ -939,11 +854,10 @@ server_cleanup (server * serv)
 		serv->joindelay_tag = 0;
 	}
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (serv->ssl)
 	{
-		SSL_shutdown (serv->ssl);
-		SSL_free (serv->ssl);
+		pchat_ssl_free (serv->ssl);
 		serv->ssl = NULL;
 	}
 #endif
@@ -1552,14 +1466,14 @@ server_connect (server *serv, char *hostname, int port, int no_login)
 
 	DEBUG_LOG("SERVER", "server_connect: hostname=%s, port=%d, no_login=%d", hostname, port, no_login);
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (!serv->ctx && serv->use_ssl)
 	{
 		DEBUG_LOG("SERVER", "Initializing SSL context");
-		if (!(serv->ctx = _SSL_context_init (ssl_cb_info)))
+		if (!(serv->ctx = pchat_ssl_ctx_new ()))
 		{
 			DEBUG_LOG("SERVER", "SSL context init FAILED");
-			fprintf (stderr, "_SSL_context_init failed\n");
+			fprintf (stderr, "pchat_ssl_ctx_new failed\n");
 			exit (1);
 		}
 		DEBUG_LOG("SERVER", "SSL context initialized successfully");
@@ -1576,7 +1490,7 @@ server_connect (server *serv, char *hostname, int port, int no_login)
 	{
 		/* use default port for this server type */
 		port = 6667;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		if (serv->use_ssl)
 			port = 6697;
 #endif
@@ -1595,7 +1509,7 @@ server_connect (server *serv, char *hostname, int port, int no_login)
 	if (hostname != serv->hostname)
 		safe_strcpy (serv->hostname, hostname, sizeof (serv->hostname));
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (serv->use_ssl)
 	{
 		char *cert_file;
@@ -1604,20 +1518,17 @@ server_connect (server *serv, char *hostname, int port, int no_login)
 		/* first try network specific cert/key */
 		cert_file = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "certs" G_DIR_SEPARATOR_S "%s.pem",
 					 get_xdir (), server_get_network (serv, TRUE));
-		if (SSL_CTX_use_certificate_file (serv->ctx, cert_file, SSL_FILETYPE_PEM) == 1)
+		if (pchat_ssl_ctx_use_cert_file (serv->ctx, cert_file))
 		{
-			if (SSL_CTX_use_PrivateKey_file (serv->ctx, cert_file, SSL_FILETYPE_PEM) == 1)
-				serv->have_cert = TRUE;
+			serv->have_cert = TRUE;
 		}
 		else
 		{
+			g_free (cert_file);
 			/* if that doesn't exist, try <config>/certs/client.pem */
 			cert_file = g_build_filename (get_xdir (), "certs", "client.pem", NULL);
-			if (SSL_CTX_use_certificate_file (serv->ctx, cert_file, SSL_FILETYPE_PEM) == 1)
-			{
-				if (SSL_CTX_use_PrivateKey_file (serv->ctx, cert_file, SSL_FILETYPE_PEM) == 1)
-					serv->have_cert = TRUE;
-			}
+			if (pchat_ssl_ctx_use_cert_file (serv->ctx, cert_file))
+				serv->have_cert = TRUE;
 		}
 		g_free (cert_file);
 	}
@@ -1783,7 +1694,7 @@ server_set_defaults (server *serv)
 	g_free (serv->chanmodes);
 	g_free (serv->nick_prefixes);
 	g_free (serv->nick_modes);
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
         g_clear_pointer (&serv->scram_session, scram_session_free);
 #endif
 	serv->chantypes = g_strdup ("#&!+");
@@ -1961,9 +1872,9 @@ server_free (server *serv)
 	if (serv->dialogs_hash)
 		g_hash_table_destroy (serv->dialogs_hash);
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	if (serv->ctx)
-		_SSL_context_free (serv->ctx);
+		pchat_ssl_ctx_free (serv->ctx);
 
         g_clear_pointer (&serv->scram_session, scram_session_free);
 #endif

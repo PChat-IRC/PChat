@@ -29,18 +29,11 @@
 #ifndef pchat_H
 #define pchat_H
 
-#ifdef USE_OPENSSL
-#ifdef __APPLE__
-#define __AVAILABILITYMACROS__
-#define DEPRECATED_IN_MAC_OS_X_VERSION_10_7_AND_LATER
-#endif
-#endif
-
 #include "history.h"
 #include "tree.h"
 
-#ifdef USE_OPENSSL
-#include <openssl/ssl.h>		  /* SSL_() */
+#ifdef USE_SSL
+#include "ssl.h"
 #include "scram.h"
 #endif
 
@@ -492,9 +485,9 @@ typedef struct server
 	/* dcc_ip moved from pchatprefs to make it per-server */
 	guint32 dcc_ip;
 
-#ifdef USE_OPENSSL
-	SSL_CTX *ctx;
-	SSL *ssl;
+#ifdef USE_SSL
+	pchat_ssl_ctx *ctx;
+	pchat_ssl *ssl;
 	int ssl_do_connect_tag;
 #else
 	void *ssl;
@@ -591,7 +584,7 @@ typedef struct server
 	unsigned int sent_capend:1;	/* have sent CAP END yet */
 	unsigned int waiting_on_cap:1;	/* waiting on another line of CAP LS */
 	unsigned int waiting_on_sasl:1; /* waiting on sasl */
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	unsigned int use_ssl:1;				  /* is server SSL capable? */
 	unsigned int accept_invalid_cert:1;/* ignore result of server's cert. verify */
 	scram_session *scram_session; /* session for SASL SCRAM authentication */

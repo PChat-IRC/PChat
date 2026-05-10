@@ -1665,7 +1665,7 @@ static void
 menu_about (GtkWidget *wid, gpointer sess)
 {
 	GtkAboutDialog *dialog = GTK_ABOUT_DIALOG(gtk_about_dialog_new());
-	char comment[512];
+	char comment[1024];
 	char *license = "This program is free software; you can redistribute it and/or modify\n" \
 					"it under the terms of the GNU General Public License as published by\n" \
 					"the Free Software Foundation; version 2.\n\n" \
@@ -1681,12 +1681,28 @@ menu_about (GtkWidget *wid, gpointer sess)
 				"Portable Mode: %s\n"
 				"Build Type: x%d\n"
 #endif
-				"OS: %s",
+				"OS: %s\n"
+				"\n"
+				"Libraries:\n"
+				"  GLib %d.%d.%d\n"
+				"  GTK %d.%d.%d\n"
+#ifdef USE_SSL
+				"  TLS: %s (%s)\n"
+#else
+				"  TLS: disabled\n"
+#endif
+				,
 #ifdef _WIN32
 				(portable_mode () ? "Yes" : "No"),
 				get_cpu_arch (),
 #endif
-				get_sys_str (0));
+				get_sys_str (0),
+				glib_major_version, glib_minor_version, glib_micro_version,
+				gtk_get_major_version (), gtk_get_minor_version (), gtk_get_micro_version ()
+#ifdef USE_SSL
+				, pchat_ssl_backend_name (), pchat_ssl_backend_version ()
+#endif
+				);
 
 	gtk_about_dialog_set_program_name (dialog, DISPLAY_NAME);
 	gtk_about_dialog_set_version (dialog, PACKAGE_VERSION);

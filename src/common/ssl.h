@@ -1,6 +1,7 @@
-/* HexChat
+/* PChat
  * Copyright (C) 1998-2010 Peter Zelezny.
  * Copyright (C) 2009-2013 Berke Viktor.
+ * Copyright (C) 2026 PChat-IRC contributors.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,69 +18,98 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#ifndef pchat_SSL_H
-#define pchat_SSL_H
+/*
+ * Backend-agnostic TLS abstraction. Two implementations live alongside
+ * this header: ssl_openssl.c (POSIX/macOS/Windows OpenSSL builds) and
+ * ssl_schannel.c (Windows native Schannel builds). The previous direct
+ * use of OpenSSL types in callers has been replaced by the opaque
+ * pchat_ssl_ctx / pchat_ssl handles below.
+ */
+
+#ifndef PCHAT_SSL_H
+#define PCHAT_SSL_H
+
+#include "config.h"
+
+#ifdef USE_SSL
+
+#include <stddef.h>
+
+typedef struct pchat_ssl_ctx pchat_ssl_ctx;
+typedef struct pchat_ssl     pchat_ssl;
 
 struct cert_info {
-    char subject[256];
-    char *subject_word[12];
-    char issuer[256];
-    char *issuer_word[12];
-    char algorithm[32];
-    int algorithm_bits;
-    char sign_algorithm[32];
-    int sign_algorithm_bits;
-    char notbefore[32];
-    char notafter[32];
-
-    int rsa_tmp_bits;
+	char subject[256];
+	char *subject_word[12];
+	char issuer[256];
+	char *issuer_word[12];
+	char algorithm[32];
+	int algorithm_bits;
+	char sign_algorithm[32];
+	int sign_algorithm_bits;
+	char notbefore[32];
+	char notafter[32];
+	int rsa_tmp_bits;
 };
 
 struct chiper_info {
-    char version[16];
-    char chiper[48];
-    int chiper_bits;
+	char version[16];
+	char chiper[48];
+	int chiper_bits;
 };
 
-SSL_CTX *_SSL_context_init (void (*info_cb_func));
-#define _SSL_context_free(a)	SSL_CTX_free(a);
+typedef enum {
+	PCHAT_SSL_HANDSHAKE_PENDING = 1,
+	PCHAT_SSL_HANDSHAKE_DONE = 0,
+	PCHAT_SSL_HANDSHAKE_FAILED = -1
+} pchat_ssl_handshake_status;
 
-SSL *_SSL_socket (SSL_CTX *ctx, int sd);
-char *_SSL_set_verify (SSL_CTX *ctx, void *(verify_callback));
-/*
-    int SSL_connect(SSL *);
-    int SSL_accept(SSL *);
-    int SSL_get_fd(SSL *);
-*/
-void _SSL_close (SSL * ssl);
-int _SSL_check_hostname(X509 *cert, const char *host);
-int _SSL_get_cert_info (struct cert_info *cert_info, SSL * ssl);
-struct chiper_info *_SSL_get_cipher_info (SSL * ssl);
+typedef struct {
+	int verified;        /* 1 = chain verified AND hostname matched */
+	int recoverable;     /* 1 = error class the user may "accept" with prefs */
+	int hostname_error;  /* nonzero if the failure is hostname-mismatch */
+	char error[256];     /* human-readable description for the UI */
+} pchat_ssl_verify_result;
 
-/*char *_SSL_add_keypair (SSL_CTX *ctx, char *privkey, char *cert);*/
-/*void _SSL_add_random_keypair(SSL_CTX *ctx, int bits);*/
+/* Returns a static string identifying the active backend. */
+const char *pchat_ssl_backend_name (void);
+const char *pchat_ssl_backend_version (void);
 
-int _SSL_send (SSL * ssl, char *buf, int len);
-int _SSL_recv (SSL * ssl, char *buf, int len);
+pchat_ssl_ctx *pchat_ssl_ctx_new (void);
+void pchat_ssl_ctx_free (pchat_ssl_ctx *ctx);
 
-/* misc */
-/*void broke_oneline (char *oneline, char *parray[]);*/
+/* Configure peer-certificate verification. Returns NULL on success or a
+ * static error string on failure. */
+const char *pchat_ssl_ctx_set_verify (pchat_ssl_ctx *ctx);
 
-/*char *_SSL_do_cipher_base64(char *buf, int buf_len, char *key, int operation);*/		/* must be freed */
+/* Load a client certificate + private key from a single PEM file.
+ * Returns 1 on success, 0 on failure. */
+int pchat_ssl_ctx_use_cert_file (pchat_ssl_ctx *ctx, const char *path);
 
-/*void *_SSL_get_sess_obj(SSL *ssl, int type);*/		/* NOT must be freed */
-#define	_SSL_get_sess_pkey(a)	_SSL_get_sess_obj(a, 0)
-#define	_SSL_get_sess_prkey(a)	_SSL_get_sess_obj(a, 1)
-#define	_SSL_get_sess_x509(a)	_SSL_get_sess_obj(a, 2)
-/*char *_SSL_get_obj_base64(void *s, int type);*/		/* must be freed */
-#define	_SSL_get_pkey_base64(a)		_SSL_get_obj_base64(a, 0)
-#define	_SSL_get_prkey_base64(a)	_SSL_get_obj_base64(a, 1)
-#define	_SSL_get_x509_base64(a)		_SSL_get_obj_base64(a, 2)
-/*char *_SSL_get_ctx_obj_base64(SSL_CTX *ctx, int type);*/	/* must be freed */
-#define	_SSL_get_ctx_pkey_base64(a)	_SSL_get_ctx_obj_base64(a, 0)
-#define	_SSL_get_ctx_prkey_base64(a)	_SSL_get_ctx_obj_base64(a, 1)
-#define	_SSL_get_ctx_x509_base64(a)	_SSL_get_ctx_obj_base64(a, 2)
+/* Create a TLS session bound to an already-connected socket. */
+pchat_ssl *pchat_ssl_new (pchat_ssl_ctx *ctx, int sd, const char *hostname);
+void pchat_ssl_free (pchat_ssl *ssl);
 
-/*int _SSL_verify_x509(X509 *x509);*/
+/* Drive the TLS handshake one step. errbuf is filled on failure.
+ * If failure looks like a protocol/version mismatch, *wrong_version_hint=1. */
+pchat_ssl_handshake_status pchat_ssl_do_handshake (pchat_ssl *ssl,
+		char *errbuf, size_t errbuf_size, int *wrong_version_hint);
 
-#endif
+/* Returns nonzero if the handshake started more than timeout_secs ago. */
+int pchat_ssl_handshake_timed_out (pchat_ssl *ssl, int timeout_secs);
+
+/* Fill out the verification result after a successful handshake. */
+void pchat_ssl_get_verify_result (pchat_ssl *ssl, const char *hostname,
+		pchat_ssl_verify_result *out);
+
+int pchat_ssl_get_cert_info (struct cert_info *out, pchat_ssl *ssl);
+
+/* Returns a pointer to a static buffer overwritten by each call. */
+struct chiper_info *pchat_ssl_get_cipher_info (pchat_ssl *ssl);
+
+int pchat_ssl_send (pchat_ssl *ssl, const char *buf, int len);
+int pchat_ssl_recv (pchat_ssl *ssl, char *buf, int len);
+
+#endif /* USE_SSL */
+
+#endif /* PCHAT_SSL_H */

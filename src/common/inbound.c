@@ -1710,7 +1710,7 @@ inbound_toggle_caps (server *serv, const char *extensions_str, gboolean enable)
 			serv->have_sasl = enable;
 			if (enable)
 			{
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 				if (serv->loginmethod == LOGIN_SASLEXTERNAL)
 					serv->sasl_mech = MECH_EXTERNAL;
 				else if (serv->loginmethod == LOGIN_SASL_SCRAM_SHA_1)
@@ -1787,7 +1787,7 @@ get_supported_mech (server *serv, const char *list)
 
 	for (i = 0; mechs[i]; ++i)
 	{
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		if (serv->loginmethod == LOGIN_SASLEXTERNAL)
 		{
 			if (!strcmp (mechs[i], "EXTERNAL"))
@@ -1991,7 +1991,7 @@ plain_authenticate (server *serv, char *user, char *password)
 		tcp_sendf (serv, "AUTHENTICATE +\r\n");
 }
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 /*
  * Sends AUTHENTICATE messages to log in via SCRAM.
  */
@@ -2073,7 +2073,7 @@ inbound_sasl_authenticate (server *serv, char *data)
 		case MECH_PLAIN:
 			plain_authenticate(serv, user, serv->password);
 			break;
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 		case MECH_EXTERNAL:
 			tcp_sendf (serv, "AUTHENTICATE +\r\n");
 			break;
@@ -2096,7 +2096,7 @@ inbound_sasl_authenticate (server *serv, char *data)
 void
 inbound_sasl_error (server *serv)
 {
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
     g_clear_pointer (&serv->scram_session, scram_session_free);
 #endif
 	/* Just abort, not much we can do */

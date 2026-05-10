@@ -7,8 +7,8 @@ add_subdirectory(pkgconfig)
 # Install gresource XML
 install(FILES pchat.gresource.xml DESTINATION ${CMAKE_INSTALL_DATADIR}/pchat COMPONENT Runtime)
 
-# Install OpenSSL cert.pem on Windows for standalone SSL verification
-if(WIN32 AND ENABLE_OPENSSL)
+# Install OpenSSL cert.pem on Windows for standalone SSL verification (OpenSSL backend only)
+if(WIN32 AND PCHAT_SSL_BACKEND STREQUAL "openssl")
     # Find cert.pem in MSYS2/MinGW OpenSSL directory
     find_file(OPENSSL_CERT_FILE
         NAMES cert.pem ca-bundle.crt

@@ -104,6 +104,16 @@ fe_new_window (struct session *sess, int focus)
 				glib_major_version, glib_minor_version, glib_micro_version);
 	fe_print_text (sess, buf, 0, FALSE);
 
+#ifdef USE_SSL
+	{
+		char ssl_buf[128];
+		snprintf (ssl_buf, sizeof (ssl_buf),
+			" \017TLS backend \00310%s \017(\00310%s\017)\n",
+			pchat_ssl_backend_name (), pchat_ssl_backend_version ());
+		fe_print_text (sess, ssl_buf, 0, FALSE);
+	}
+#endif
+
 	fe_print_text (sess, "\n\nCompiled in Features\00302:\017 "
 #ifdef USE_PLUGIN
 	"Plugin "
@@ -111,8 +121,8 @@ fe_new_window (struct session *sess, int focus)
 #ifdef ENABLE_NLS
 	"NLS "
 #endif
-#ifdef USE_OPENSSL
-	"OpenSSL "
+#ifdef USE_SSL
+	"TLS "
 #endif
 #ifdef USE_IPV6
 	"IPv6"

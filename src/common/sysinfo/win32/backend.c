@@ -63,11 +63,50 @@ sysinfo_get_cpu (void)
 	return g_strdup (cpu_info);
 }
 
+/* RtlGetVersion is the only reliable way to get the real Windows version
+ * since Windows 8.1 (GetVersionEx lies without an app manifest). It lives
+ * in ntdll.dll and is loaded dynamically to avoid linking against ntdll. */
+static gboolean
+get_windows_version_fallback (char *out, gsize out_size)
+{
+	typedef LONG (WINAPI *RtlGetVersionPtr) (PRTL_OSVERSIONINFOW);
+	HMODULE ntdll;
+	RtlGetVersionPtr fn;
+	RTL_OSVERSIONINFOW vi;
+
+	ntdll = GetModuleHandleW (L"ntdll.dll");
+	if (ntdll == NULL)
+		return FALSE;
+
+	fn = (RtlGetVersionPtr) GetProcAddress (ntdll, "RtlGetVersion");
+	if (fn == NULL)
+		return FALSE;
+
+	memset (&vi, 0, sizeof (vi));
+	vi.dwOSVersionInfoSize = sizeof (vi);
+	if (fn (&vi) != 0)
+		return FALSE;
+
+	g_snprintf (out, out_size, "Windows %lu.%lu (build %lu)",
+		(unsigned long) vi.dwMajorVersion,
+		(unsigned long) vi.dwMinorVersion,
+		(unsigned long) vi.dwBuildNumber);
+	return TRUE;
+}
+
 char *
 sysinfo_get_os (void)
 {
 	if (os_name == NULL)
 		os_name = query_wmi (QUERY_WMI_OS);
+
+	if (os_name == NULL || os_name[0] == '\0')
+	{
+		char fallback[128];
+		if (get_windows_version_fallback (fallback, sizeof (fallback)))
+			return g_strdup_printf ("%s (x%d)", fallback, sysinfo_get_cpu_arch ());
+		return g_strdup_printf ("Windows (x%d)", sysinfo_get_cpu_arch ());
+	}
 
 	return g_strdup_printf ("%s (x%d)", os_name, sysinfo_get_cpu_arch ());
 }

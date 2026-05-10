@@ -121,13 +121,13 @@ static int login_types_conf[] =
 {
 	LOGIN_DEFAULT,			/* default entry - we don't use this but it makes indexing consistent with login_types[] so it's nice */
 	LOGIN_SASL,
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	LOGIN_SASLEXTERNAL,
 #endif
 	LOGIN_PASS,
 	LOGIN_MSG_NICKSERV,
 	LOGIN_NICKSERV,
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	LOGIN_CHALLENGEAUTH,
 #endif
 	LOGIN_CUSTOM
@@ -142,13 +142,13 @@ static const char *login_types[]=
 {
 	"Default",
 	"SASL (username + password)",
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	"SASL EXTERNAL (cert)",
 #endif
 	"Server Password (/PASS password)",
 	"NickServ (/MSG NickServ + password)",
 	"NickServ (/NICKSERV + password)",
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 	"Challenge Auth (username + password)",
 #endif
 	"Custom... (connect commands)",
@@ -1846,11 +1846,11 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 	servlist_create_check (3, net->flags & FLAG_AUTO_CONNECT, table3, 1, 0, _("Connect to this network automatically"));
 	servlist_create_check (4, !(net->flags & FLAG_USE_PROXY), table3, 2, 0, _("Bypass proxy server"));
 	check = servlist_create_check (2, net->flags & FLAG_USE_SSL, table3, 3, 0, _("Use SSL for all the servers on this network"));
-#ifndef USE_OPENSSL
+#ifndef USE_SSL
 	gtk_widget_set_sensitive (check, FALSE);
 #endif
 	check = servlist_create_check (5, net->flags & FLAG_ALLOW_INVALID, table3, 4, 0, _("Accept invalid SSL certificates"));
-#ifndef USE_OPENSSL
+#ifndef USE_SSL
 	gtk_widget_set_sensitive (check, FALSE);
 #endif
 	servlist_create_check (1, net->flags & FLAG_USE_GLOBAL, table3, 5, 0, _("Use global user information"));

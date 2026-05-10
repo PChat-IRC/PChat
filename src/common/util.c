@@ -53,9 +53,8 @@
 #endif
 
 /* SASL mechanisms */
-#ifdef USE_OPENSSL
-#include <openssl/bn.h>
-#include <openssl/rand.h>
+#ifdef USE_SSL
+#include "pchat_crypto.h"
 #ifndef WIN32
 #include <netinet/in.h>
 #endif
@@ -1373,31 +1372,22 @@ encode_sasl_pass_plain (char *user, char *pass)
 	return encoded;
 }
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
+#define SHA256_BYTES 32
 static char *
 str_sha256hash (char *string)
 {
 	int i;
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	char buf[SHA256_DIGEST_LENGTH * 2 + 1];		/* 64 digit hash + '\0' */
+	unsigned char hash[SHA256_BYTES];
+	char buf[SHA256_BYTES * 2 + 1];
 
-#if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	SHA256 (string, strlen (string), hash);
-#else
-	SHA256_CTX sha256;
+	if (!pchat_hash (PCHAT_HASH_SHA256, string, strlen (string), hash))
+		return NULL;
 
-	SHA256_Init (&sha256);
-	SHA256_Update (&sha256, string, strlen (string));
-	SHA256_Final (hash, &sha256);
-#endif
-
-	for (i = 0; i < SHA256_DIGEST_LENGTH; i++)
-	{
+	for (i = 0; i < SHA256_BYTES; i++)
 		sprintf (buf + (i * 2), "%02x", hash[i]);
-	}
 
-	buf[SHA256_DIGEST_LENGTH * 2] = 0;
-
+	buf[SHA256_BYTES * 2] = 0;
 	return g_strdup (buf);
 }
 
@@ -1440,8 +1430,8 @@ challengeauth_response (const char *username, const char *password, const char *
 	char *passhash;
 	char *key;
 	char *keyhash;
-	unsigned char *digest;
-	GString *buf = g_string_new_len (NULL, SHA256_DIGEST_LENGTH * 2);
+	unsigned char digest[SHA256_BYTES];
+	GString *buf = g_string_new_len (NULL, SHA256_BYTES * 2);
 
 	user = rfc_strlower (username); /* convert username to lowercase as per the RFC */
 
@@ -1456,10 +1446,11 @@ challengeauth_response (const char *username, const char *password, const char *
 	keyhash = str_sha256hash (key);
 	g_free (key);
 
-	digest = HMAC (EVP_sha256 (), keyhash, strlen (keyhash), (unsigned char *) challenge, strlen (challenge), NULL, NULL);
+	pchat_hmac (PCHAT_HASH_SHA256, keyhash, strlen (keyhash),
+	            challenge, strlen (challenge), digest);
 	g_free (keyhash);
 
-	for (i = 0; i < SHA256_DIGEST_LENGTH; i++)
+	for (i = 0; i < SHA256_BYTES; i++)
 	{
 		g_string_append_printf (buf, "%02x", (unsigned int) digest[i]);
 	}

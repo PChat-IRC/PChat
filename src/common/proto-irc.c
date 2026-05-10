@@ -1232,7 +1232,7 @@ process_named_msg (session *sess, char *type, char *word[], char *word_eol[],
 					text++;
 				}
 
-#ifdef USE_OPENSSL
+#ifdef USE_SSL
 				/* QuakeNet CHALLENGE upon our request */
 				if (serv->loginmethod == LOGIN_CHALLENGEAUTH && !serv->p_cmp (word[1], CHALLENGEAUTH_FULLHOST)
 				    && !strncmp (text, "CHALLENGE ", 10) && *serv->password)
