@@ -190,9 +190,7 @@ parse_appcast(const char *xml_data, UpdateInfo **info_out)
 {
     xmlDocPtr doc;
     xmlNodePtr root, channel, item;
-    xmlNsPtr ns;
     UpdateInfo *info = NULL;
-    gboolean found_item = FALSE;
     
     *info_out = NULL;
     
@@ -220,7 +218,23 @@ parse_appcast(const char *xml_data, UpdateInfo **info_out)
         xmlFreeDoc(doc);
         return FALSE;
     }
-    Get current platform for filtering enclosures */
+    
+    /* Find first item */
+    for (item = channel->children; item; item = item->next) {
+        if (item->type == XML_ELEMENT_NODE &&
+            !xmlStrcmp(item->name, BAD_CAST "item")) {
+            break;
+        }
+    }
+    
+    if (!item) {
+        xmlFreeDoc(doc);
+        return FALSE;
+    }
+    
+    info = g_new0(UpdateInfo, 1);
+    
+    /* Get current platform for filtering enclosures */
     const char *current_platform = get_platform_identifier();
     
     /* Parse item children */
@@ -268,25 +282,7 @@ parse_appcast(const char *xml_data, UpdateInfo **info_out)
                 if (version && !info->version) {
                     info->version = g_strdup((char *)version);
                     xmlFree(version);
-                }lNodeGetContent(node);
-            info->description = g_strdup((char *)content);
-            xmlFree(content);
-        }
-        else if (!xmlStrcmp(node->name, BAD_CAST "enclosure")) {
-            xmlChar *url = xmlGetProp(node, BAD_CAST "url");
-            if (url) {
-                info->download_url = g_strdup((char *)url);
-                xmlFree(url);
-            }
-            
-            /* Check for sparkle:version attribute */
-            xmlChar *version = xmlGetProp(node, BAD_CAST "sparkle:version");
-            if (!version) {
-                version = xmlGetProp(node, BAD_CAST "version");
-            }
-            if (version && !info->version) {
-                info->version = g_strdup((char *)version);
-                xmlFree(version);
+                }
             }
         }
         /* Check for sparkle namespace elements */
