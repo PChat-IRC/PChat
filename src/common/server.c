@@ -979,7 +979,7 @@ static int
 traverse_socks (int print_fd, int sok, char *serverAddr, int port)
 {
 	struct sock_connect sc;
-	unsigned char buf[256];
+	char buf[256];
 
 	sc.version = 4;
 	sc.type = 1;
@@ -1009,9 +1009,9 @@ static int
 traverse_socks5 (int print_fd, int sok, char *serverAddr, int port)
 {
 	struct sock5_connect1 sc1;
-	unsigned char *sc2;
+	char *sc2;
 	unsigned int packetlen, addrlen;
-	unsigned char buf[260];
+	char buf[260];
 	int auth = prefs.pchat_net_proxy_auth && prefs.pchat_net_proxy_user[0] && prefs.pchat_net_proxy_pass[0];
 
 	sc1.version = 5;
@@ -1037,7 +1037,7 @@ traverse_socks5 (int print_fd, int sok, char *serverAddr, int port)
 	if (auth)
 	{
 		int len_u=0, len_p=0;
-		unsigned char *u_p_buf;
+		char *u_p_buf;
 
 		/* authentication sub-negotiation (RFC1929) */
 		if (buf[1] != 2)  /* UPA not supported by server */
@@ -1087,7 +1087,7 @@ traverse_socks5 (int print_fd, int sok, char *serverAddr, int port)
 	sc2[1] = 1;						  /* command */
 	sc2[2] = 0;						  /* reserved */
 	sc2[3] = 3;						  /* address type */
-	sc2[4] = (unsigned char) addrlen;	/* hostname length */
+	sc2[4] = (char) addrlen;	/* hostname length */
 	memcpy (sc2 + 5, serverAddr, addrlen);
 	*((unsigned short *) (sc2 + 5 + addrlen)) = htons (port);
 	send (sok, sc2, packetlen, 0);

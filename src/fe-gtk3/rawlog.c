@@ -154,8 +154,8 @@ open_rawlog (struct server *serv)
 	serv->gui->rawlog_buffer = pchat_chat_buffer_new (PCHAT_TEXTVIEW_CHAT (serv->gui->rawlog_textlist));
 	pchat_chat_buffer_show (PCHAT_TEXTVIEW_CHAT (serv->gui->rawlog_textlist), serv->gui->rawlog_buffer);
 
-	bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_SPREAD);
+	bbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_set_homogeneous (GTK_BOX (bbox), TRUE);
 	gtk_box_pack_end (GTK_BOX (vbox), bbox, 0, 0, 4);
 
 	gtkutil_button (bbox, "_Clear", NULL, rawlog_clearbutton,

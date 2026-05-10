@@ -908,8 +908,8 @@ fe_dcc_open_recv_win (int passive)
 	dccfwin.file_label = dcc_detail_label (_("File:"), detailbox, 0);
 	dccfwin.address_label = dcc_detail_label (_("Address:"), detailbox, 1);
 
-	bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_SPREAD);
+	bbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_set_homogeneous (GTK_BOX (bbox), TRUE);
 	gtk_box_pack_end (GTK_BOX (vbox), bbox, FALSE, FALSE, 2);
 
 	dccfwin.abort_button = gtkutil_button (bbox, "_Cancel", 0, abort_clicked, 0, _("Abort"));
@@ -1107,8 +1107,8 @@ fe_dcc_open_chat_win (int passive)
 	g_signal_connect (G_OBJECT (view), "row-activated",
 							G_CALLBACK (dcc_chat_dclick_cb), NULL);
 
-	bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_SPREAD);
+	bbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_set_homogeneous (GTK_BOX (bbox), TRUE);
 	gtk_box_pack_end (GTK_BOX (vbox), bbox, FALSE, FALSE, 2);
 
 	dcccwin.abort_button = gtkutil_button (bbox, "_Cancel", 0, abort_chat_clicked, 0, _("Abort"));

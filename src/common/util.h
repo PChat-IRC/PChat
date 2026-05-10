@@ -72,7 +72,7 @@ unsigned long make_ping_time (void);
 void move_file (char *src_dir, char *dst_dir, char *fname, int dccpermissions);
 int token_foreach (char *str, char sep, int (*callback) (char *str, void *ud), void *ud);
 guint32 str_hash (const char *key);
-guint32 str_ihash (const unsigned char *key);
+guint32 str_ihash (const char *key);
 void safe_strcpy (char *dest, const char *src, size_t bytes_left);
 void canonalize_key (char *key);
 int portable_mode (void);

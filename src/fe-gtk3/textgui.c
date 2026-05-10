@@ -69,9 +69,9 @@ xtext_get_stamp_str (time_t tim, char **ret)
 }
 
 static void
-PrintTextLine (PchatChatBuffer *buf, PchatTextViewChat *chat, unsigned char *text, int len, int indent, time_t timet)
+PrintTextLine (PchatChatBuffer *buf, PchatTextViewChat *chat, char *text, int len, int indent, time_t timet)
 {
-	unsigned char *tab;
+	char *tab;
 	int leftlen;
 
 	if (len == 0)
@@ -81,7 +81,7 @@ PrintTextLine (PchatChatBuffer *buf, PchatTextViewChat *chat, unsigned char *tex
 	{
 		/* Simple append without indent - timestamps handled by widget */
 		pchat_textview_chat_append_with_stamp (chat, buf, 
-		                                        (const gchar *)text, len,
+		                                        text, len,
 		                                        timet);
 		return;
 	}
@@ -92,20 +92,20 @@ PrintTextLine (PchatChatBuffer *buf, PchatTextViewChat *chat, unsigned char *tex
 	{
 		leftlen = tab - text;
 		pchat_textview_chat_append_indent (chat, buf,
-		                                    (const gchar *)text, leftlen,
-		                                    (const gchar *)(tab + 1), len - (leftlen + 1),
+		                                    text, leftlen,
+		                                    tab + 1, len - (leftlen + 1),
 		                                    timet);
 	} else
 	{
 		pchat_textview_chat_append_indent (chat, buf,
 		                                    NULL, 0,
-		                                    (const gchar *)text, len,
+		                                    text, len,
 		                                    timet);
 	}
 }
 
 void
-PrintTextRaw (void *buf_ptr, unsigned char *text, int indent, time_t stamp)
+PrintTextRaw (void *buf_ptr, char *text, int indent, time_t stamp)
 {
 	PchatChatBuffer *buf = (PchatChatBuffer *)buf_ptr;
 	PchatTextViewChat *chat;
@@ -122,7 +122,7 @@ PrintTextRaw (void *buf_ptr, unsigned char *text, int indent, time_t stamp)
 	/* split the text into separate lines */
 	while (1)
 	{
-		switch (*text)
+		switch ((unsigned char)*text)
 		{
 		case 0:
 			PrintTextLine (buf, chat, last_text, len, indent, stamp);
@@ -429,7 +429,7 @@ pevent_dialog_show ()
 
 	pevent_dialog_fill (pevent_dialog_list);
 
-	hbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+	hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
 	gtk_box_pack_end (GTK_BOX (vbox), hbox, 0, 0, 2);
 	/*wid = gtk_button_new_with_label (_("Save"));
 	gtk_box_pack_end (GTK_BOX (hbox), wid, 0, 0, 0);

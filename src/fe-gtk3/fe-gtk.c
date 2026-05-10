@@ -765,7 +765,7 @@ void
 fe_print_text (struct session *sess, char *text, time_t stamp,
 			   gboolean no_activity)
 {
-	PrintTextRaw (sess->res->buffer, (unsigned char *)text, prefs.pchat_text_indent, stamp);
+	PrintTextRaw (sess->res->buffer, text, prefs.pchat_text_indent, stamp);
 
 	if (!no_activity && sess != current_tab && sess->gui->is_tab)
 	{

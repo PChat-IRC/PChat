@@ -198,6 +198,11 @@ target_include_directories(pchat PRIVATE
 target_compile_definitions(pchat PRIVATE
     HAVE_CONFIG_H
     LOCALEDIR="${CMAKE_INSTALL_FULL_LOCALEDIR}"
+    # GTK4 migration prep: forbid use of GTK/GDK APIs deprecated in 3.x and
+    # require direct field access via accessor functions.
+    GDK_DISABLE_DEPRECATED
+    GTK_DISABLE_DEPRECATED
+    GSEAL_ENABLE
 )
 
 # Link libraries

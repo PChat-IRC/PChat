@@ -260,8 +260,8 @@ alert_match_word (char *word, char *masks)
 gboolean
 alert_match_text (char *text, char *masks)
 {
-	unsigned char *p = text;
-	unsigned char endchar;
+	char *p = text;
+	char endchar;
 	int res;
 
 	if (masks[0] == 0)
@@ -298,12 +298,12 @@ alert_match_text (char *text, char *masks)
 			if (res)
 				return TRUE;	/* yes, matched! */
 
-			text = p + g_utf8_skip [p[0]];
+			text = p + g_utf8_skip [(unsigned char)p[0]];
 			if (*p == 0)
 				return FALSE;
 		}
 
-		p += g_utf8_skip [p[0]];
+		p += g_utf8_skip [(unsigned char)p[0]];
 	}
 }
 
@@ -2017,7 +2017,7 @@ scram_authenticate (server *serv, const char *data, const char *digest,
 		}
 	}
 
-	decoded = g_base64_decode (data, &decoded_len);
+	decoded = (char *)g_base64_decode (data, &decoded_len);
 	status = scram_process (serv->scram_session, decoded, &output, &output_len);
 	g_free (decoded);
 

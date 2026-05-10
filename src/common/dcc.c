@@ -957,7 +957,7 @@ dcc_wingate_proxy_traverse (GIOChannel *source, GIOCondition condition, struct D
 	struct proxy_state *proxy = dcc->proxy;
 	if (proxy->phase == 0)
 	{
-		proxy->buffersize = g_snprintf ((char*) proxy->buffer, MAX_PROXY_BUFFER,
+		proxy->buffersize = g_snprintf (proxy->buffer, MAX_PROXY_BUFFER,
 										"%s %d\r\n", net_ip(dcc->addr),
 										dcc->port);
 		proxy->bufferused = 0;

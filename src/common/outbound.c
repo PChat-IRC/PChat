@@ -4241,7 +4241,7 @@ help (session *sess, char *tbuf, char *helpcmd, int quiet)
  * - this beast is used for UserCommands, UserlistButtons and CTCP replies   */
 
 int
-auto_insert (char *dest, gsize destlen, unsigned char *src, char *word[],
+auto_insert (char *dest, gsize destlen, char *src, char *word[],
 				 char *word_eol[], char *a, char *c, char *d, char *e, char *h,
 				 char *n, char *s, char *u)
 {

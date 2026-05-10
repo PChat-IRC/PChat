@@ -857,7 +857,7 @@ setup_apply_trans (int *tag)
 }
 
 static void
-setup_hscale_cb (GtkHScale *wid, const setting *set)
+setup_hscale_cb (GtkScale *wid, const setting *set)
 {
 	static int tag = 0;
 
@@ -1086,7 +1086,7 @@ setup_browsefile_cb (GtkWidget *button, GtkWidget *entry)
 }
 
 static void
-setup_fontsel_destroy (GtkWidget *button, GtkFontSelectionDialog *dialog)
+setup_fontsel_destroy (GtkWidget *button, GtkWidget *dialog)
 {
 	font_dialog = NULL;
 }
@@ -1137,7 +1137,7 @@ setup_entry_cb (GtkEntry *entry, setting *set)
 {
 	int size;
 	int pos;
-	unsigned char *p = (unsigned char*)gtk_entry_get_text (entry);
+	const char *p = gtk_entry_get_text (entry);
 	int len = strlen (p);
 
 	/* need to truncate? */
@@ -1146,7 +1146,7 @@ setup_entry_cb (GtkEntry *entry, setting *set)
 		len = pos = 0;
 		while (1)
 		{
-			size = g_utf8_skip [*p];
+			size = g_utf8_skip [(unsigned char)*p];
 			len += size;
 			p += size;
 			/* truncate to "set->extra" BYTES */
@@ -1370,46 +1370,7 @@ setup_create_page (const setting *set)
 	return box;
 }
 
-#if 0
-/* No longer needed - color selection now uses gtk_dialog_run */
-static void
-setup_color_ok_cb (GtkWidget *button, GtkWidget *dialog)
-{
-	GtkColorSelectionDialog *cdialog = GTK_COLOR_SELECTION_DIALOG (dialog);
-	GdkRGBA *col;
-	GdkRGBA old_color;
-	/* GtkStyle *style; */  /* Unused - deprecated GtkStyle code is disabled */
 
-	col = g_object_get_data (G_OBJECT (button), "c");
-	old_color = *col;
-
-	button = g_object_get_data (G_OBJECT (button), "b");
-
-	if (!GTK_IS_WIDGET (button))
-	{
-		gtk_widget_destroy (dialog);
-		return;
-	}
-
-	color_change = TRUE;
-
-#if 0
-	gtk_color_selection_get_current_color (GTK_COLOR_SELECTION (gtk_color_selection_dialog_get_color_selection (cdialog)), col);
-
-	gdk_colormap_alloc_color (gtk_widget_get_colormap (button), col, TRUE, TRUE);
-
-	style = gtk_style_new ();
-	style->bg[0] = *col;
-	gtk_widget_set_style (button, style);
-	g_object_unref (style);
-
-	/* is this line correct?? */
-	gdk_colormap_free_colors (gtk_widget_get_colormap (button), &old_color, 1);
-#endif
-
-	gtk_widget_destroy (dialog);
-}
-#endif
 
 static void
 setup_update_color_button (GtkWidget *button, GdkRGBA *color)
@@ -1582,10 +1543,6 @@ setup_create_color_page (void)
 	setup_create_other_colorR (_("Spell checker:"), COL_SPELL, 11, tab);
 
 	setup_create_header (tab, 15, N_("Color Stripping"));
-
-	/* label = gtk_label_new (_("Strip colors from:"));
-	gtk_table_attach (GTK_TABLE (tab), label, 2, 3, 16, 17,
-							GTK_SHRINK | GTK_FILL, GTK_SHRINK | GTK_FILL, LABEL_INDENT, 0); */
 
 	for (i = 0; i < 3; i++)
 	{
@@ -2360,8 +2317,8 @@ setup_window_open (void)
 	gtk_box_pack_end (GTK_BOX (vbox), hbox, FALSE, FALSE, 0);
 
 	/* prepare the button box */
-	hbbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-	gtk_box_set_spacing (GTK_BOX (hbbox), 4);
+	hbbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+	gtk_widget_set_halign (hbbox, GTK_ALIGN_END);
 	gtk_box_pack_end (GTK_BOX (hbox), hbbox, FALSE, FALSE, 0);
 
 	/* standard buttons */

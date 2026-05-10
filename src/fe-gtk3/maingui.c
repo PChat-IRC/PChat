@@ -586,19 +586,11 @@ mg_progressbar_update (GtkWidget *bar)
 		if (type == 0)
 		{
 			type = 1;
-#if !GTK_CHECK_VERSION (3, 0, 0)
-			gtk_progress_bar_set_orientation ((GtkProgressBar *) bar,
-														 GTK_PROGRESS_RIGHT_TO_LEFT);
-#else
-			/* invert replaces this? */
-#endif
+			gtk_progress_bar_set_inverted ((GtkProgressBar *) bar, TRUE);
 		} else
 		{
 			type = 0;
-#if !GTK_CHECK_VERSION (3, 0, 0)
-			gtk_progress_bar_set_orientation ((GtkProgressBar *) bar,
-														 GTK_PROGRESS_LEFT_TO_RIGHT);
-#endif
+			gtk_progress_bar_set_inverted ((GtkProgressBar *) bar, FALSE);
 		}
 		pos = 0.05;
 	}

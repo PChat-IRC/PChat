@@ -63,7 +63,7 @@ struct DCC
 	goffset lastcpspos;
 	gint64 maxcps;
 
-	unsigned char ack_buf[4];	/* buffer for reading 4-byte ack */
+	char ack_buf[4];	/* buffer for reading 4-byte ack */
 	int ack_pos;
 
 	guint64 size;
@@ -90,7 +90,7 @@ struct DCC
 struct proxy_state
 {
 	int phase;
-	unsigned char buffer[MAX_PROXY_BUFFER];
+	char buffer[MAX_PROXY_BUFFER];
 	int buffersize;
 	int bufferused;
 };

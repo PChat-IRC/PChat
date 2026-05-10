@@ -1809,9 +1809,7 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 
 
 	/* Button Box */
-	vbuttonbox1 = gtk_button_box_new (GTK_ORIENTATION_VERTICAL);
-	gtk_box_set_spacing (GTK_BOX (vbuttonbox1), 3);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (vbuttonbox1), GTK_BUTTONBOX_START);
+	vbuttonbox1 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
 	gtk_box_pack_start (GTK_BOX (hbox1), vbuttonbox1, FALSE, FALSE, 3);
 
 	buttonadd = gtk_button_new_with_mnemonic (_("_Add"));
@@ -1900,9 +1898,9 @@ servlist_open_edit (GtkWidget *parent, ircnet *net)
 	hseparator2 = gtk_separator_new (GTK_ORIENTATION_HORIZONTAL);
 	gtk_box_pack_start (GTK_BOX (vbox5), hseparator2, FALSE, FALSE, 8);
 
-	hbuttonbox4 = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+	hbuttonbox4 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_halign (hbuttonbox4, GTK_ALIGN_END);
 	gtk_box_pack_start (GTK_BOX (vbox5), hbuttonbox4, FALSE, FALSE, 0);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (hbuttonbox4), GTK_BUTTONBOX_END);
 
 	button10 = gtk_button_new_with_mnemonic (_("_Close"));
 	gtk_button_set_image (GTK_BUTTON (button10), gtk_image_new_from_icon_name ("window-close", GTK_ICON_SIZE_BUTTON));
@@ -2114,9 +2112,7 @@ servlist_open_networks (void)
 							G_CALLBACK (fav_servlist), 0);
 	gtk_widget_show (checkbutton_fav);
 
-	vbuttonbox2 = gtk_button_box_new (GTK_ORIENTATION_VERTICAL);
-	gtk_box_set_spacing (GTK_BOX (vbuttonbox2), 3);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (vbuttonbox2), GTK_BUTTONBOX_START);
+	vbuttonbox2 = gtk_box_new (GTK_ORIENTATION_VERTICAL, 3);
 	gtk_widget_show (vbuttonbox2);
 	gtk_grid_attach (GTK_GRID (table4), vbuttonbox2, 1, 0, 1, 1);
 
@@ -2164,7 +2160,8 @@ servlist_open_networks (void)
 	gtk_widget_show (hseparator1);
 	gtk_box_pack_start (GTK_BOX (vbox1), hseparator1, FALSE, TRUE, 4);
 
-	hbuttonbox1 = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+	hbuttonbox1 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_widget_set_halign (hbuttonbox1, GTK_ALIGN_END);
 	gtk_widget_show (hbuttonbox1);
 	gtk_box_pack_start (GTK_BOX (vbox1), hbuttonbox1, FALSE, TRUE, 0);
 	gtk_container_set_border_width (GTK_CONTAINER (hbuttonbox1), 8);

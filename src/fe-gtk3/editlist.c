@@ -353,8 +353,8 @@ editlist_gui_open (char *title1, char *title2, GSList *list, char *title, char *
 	if (help)
 		gtk_widget_set_tooltip_text (view, help);
 
-	box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
-	gtk_button_box_set_layout (GTK_BUTTON_BOX (box), GTK_BUTTONBOX_SPREAD);
+	box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_set_homogeneous (GTK_BOX (box), TRUE);
 	gtk_box_pack_start (GTK_BOX (vbox), box, FALSE, FALSE, 2);
 	gtk_container_set_border_width (GTK_CONTAINER (box), 5);
 	gtk_widget_show_all (box);

@@ -1257,14 +1257,14 @@ str_hash (const char *key)
 }
 
 guint32
-str_ihash (const unsigned char *key)
+str_ihash (const char *key)
 {
 	const char *p = key;
-	guint32 h = rfc_tolowertab [(guint)*p];
+	guint32 h = rfc_tolowertab [(guint)(unsigned char)*p];
 
 	if (h)
 		for (p += 1; *p != '\0'; p++)
-			h = (h << 5) - h + rfc_tolowertab [(guint)*p];
+			h = (h << 5) - h + rfc_tolowertab [(guint)(unsigned char)*p];
 
 	return h;
 }

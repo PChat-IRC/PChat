@@ -25,13 +25,16 @@
 #include <string.h>
 
 #ifdef _WIN32
-#include <windows.h>
 #include <io.h>
 #else
 #include <unistd.h>
 #endif
 
 #include "fe-gtk.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include <gdk/gdkkeysyms.h>
 
