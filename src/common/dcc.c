@@ -331,13 +331,12 @@ static int
 dcc_connect_sok (struct DCC *dcc)
 {
 	int sok;
-	struct sockaddr_in addr;
+	struct sockaddr_in addr = { 0 };
 
 	sok = socket (AF_INET, SOCK_STREAM, 0);
 	if (sok == -1)
 		return -1;
 
-	memset (&addr, 0, sizeof (addr));
 	addr.sin_family = AF_INET;
 	if (DCC_USE_PROXY ())
 	{
@@ -799,9 +798,8 @@ dcc_did_connect (GIOChannel *source, GIOCondition condition, struct DCC *dcc)
 	}
 
 #else
-	struct sockaddr_in addr;
+	struct sockaddr_in addr = { 0 };
 
-	memset (&addr, 0, sizeof (addr));
 	addr.sin_port = htons (dcc->port);
 	addr.sin_family = AF_INET;
 	addr.sin_addr.s_addr = htonl (dcc->addr);
@@ -1637,15 +1635,13 @@ static int
 dcc_listen_init (struct DCC *dcc, session *sess)
 {
 	guint32 my_addr;
-	struct sockaddr_in SAddr;
+	struct sockaddr_in SAddr = { 0 };
 	int i, bindretval = -1;
 	socklen_t len;
 
 	dcc->sok = socket (AF_INET, SOCK_STREAM, 0);
 	if (dcc->sok == -1)
 		return FALSE;
-
-	memset (&SAddr, 0, sizeof (struct sockaddr_in));
 
 	len = sizeof (SAddr);
 	getsockname (dcc->serv->sok, (struct sockaddr *) &SAddr, &len);
@@ -2436,17 +2432,18 @@ dcc_add_file (session *sess, char *file, guint64 size, int port, char *nick, gui
 	{
 		dcc->file = g_strdup (file);
 
-		dcc->destfile = g_malloc (strlen (prefs.pchat_dcc_dir) + strlen (nick) +
-										  strlen (file) + 4);
+		size_t destfile_size = strlen (prefs.pchat_dcc_dir) + strlen (nick) +
+							   strlen (file) + 4;
+		dcc->destfile = g_malloc (destfile_size);
 
-		strcpy (dcc->destfile, prefs.pchat_dcc_dir);
+		g_strlcpy (dcc->destfile, prefs.pchat_dcc_dir, destfile_size);
 		if (prefs.pchat_dcc_dir[strlen (prefs.pchat_dcc_dir) - 1] != G_DIR_SEPARATOR)
-			strcat (dcc->destfile, G_DIR_SEPARATOR_S);
+			g_strlcat (dcc->destfile, G_DIR_SEPARATOR_S, destfile_size);
 		if (prefs.pchat_dcc_save_nick)
 		{
 #ifdef WIN32
 			char *t = strlen (dcc->destfile) + dcc->destfile;
-			strcpy (t, nick);
+			g_strlcpy (t, nick, destfile_size - (size_t)(t - dcc->destfile));
 			while (*t)
 			{
 				if (*t == '\\' || *t == '|')
@@ -2454,11 +2451,11 @@ dcc_add_file (session *sess, char *file, guint64 size, int port, char *nick, gui
 				t++;
 			}
 #else
-			strcat (dcc->destfile, nick);
+			g_strlcat (dcc->destfile, nick, destfile_size);
 #endif
-			strcat (dcc->destfile, ".");
+			g_strlcat (dcc->destfile, ".", destfile_size);
 		}
-		strcat (dcc->destfile, file);
+		g_strlcat (dcc->destfile, file, destfile_size);
 
 		dcc->resumable = 0;
 		dcc->pos = 0;

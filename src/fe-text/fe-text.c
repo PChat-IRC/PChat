@@ -227,10 +227,10 @@ fe_print_text (struct session *sess, char *text, time_t stamp,
 						if (mirc > 9)
 						{
 							mirc += 50;
-							sprintf ((char *) &newtext[j], "%dm", mirc + col);
+							g_snprintf ((char *) &newtext[j], bufsize - j, "%dm", mirc + col);
 						} else
 						{
-							sprintf ((char *) &newtext[j], "%dm", mirc + col);
+							g_snprintf ((char *) &newtext[j], bufsize - j, "%dm", mirc + col);
 						}
 						j = strlen (newtext);
 					}

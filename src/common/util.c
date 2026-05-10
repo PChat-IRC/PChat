@@ -97,7 +97,7 @@ path_part (char *file, char *path, int pathlen)
 char *				/* like strstr(), but nocase */
 nocasestrstr (const char *s, const char *wanted)
 {
-	register const int len = strlen (wanted);
+	const size_t len = strlen (wanted);
 
 	if (len == 0)
 		return (char *)s;
@@ -171,7 +171,7 @@ errorstring (int err)
 		}	/* ! if (osvi.dwMajorVersion >= 5) */
 
 		/* fallback to error number */
-		sprintf (tbuf, "%s %d", _("Error"), err);
+		g_snprintf (tbuf, sizeof (tbuf), "%s %d", _("Error"), err);
 		return tbuf;
 	} /* ! if (err >= WSABASEERR) */
 #endif	/* ! WIN32 */
@@ -552,9 +552,9 @@ buf_get_line (char *ibuf, char **buf, int *position, int len)
 
 int match(const char *mask, const char *string)
 {
-  register const char *m = mask, *s = string;
-  register char ch;
-  const char *bm, *bs;		/* Will be reg anyway on a decent CPU/compiler */
+  const char *m = mask, *s = string;
+  char ch;
+  const char *bm, *bs;
 
   /* Process the "head" of the mask, if any */
   while ((ch = *m++) && (ch != '*'))
@@ -1273,9 +1273,9 @@ str_ihash (const unsigned char *key)
 /*           2. "dest" will be left with valid UTF-8 - no partial chars! */
 
 void
-safe_strcpy (char *dest, const char *src, int bytes_left)
+safe_strcpy (char *dest, const char *src, size_t bytes_left)
 {
-	int mbl;
+	size_t mbl;
 
 	while (1)
 	{
@@ -1385,7 +1385,7 @@ str_sha256hash (char *string)
 		return NULL;
 
 	for (i = 0; i < SHA256_BYTES; i++)
-		sprintf (buf + (i * 2), "%02x", hash[i]);
+		g_snprintf (buf + (i * 2), sizeof (buf) - (i * 2), "%02x", hash[i]);
 
 	buf[SHA256_BYTES * 2] = 0;
 	return g_strdup (buf);

@@ -82,10 +82,8 @@ plugingui_getfilename (GtkTreeView *view)
 	GtkTreeModel *model;
 	GtkTreeSelection *sel;
 	GtkTreeIter iter;
-	GValue file;
+	GValue file = { 0 };
 	char *str;
-
-	memset (&file, 0, sizeof (file));
 
 	sel = gtk_tree_view_get_selection (view);
 	if (gtk_tree_selection_get_selected (sel, &model, &iter))

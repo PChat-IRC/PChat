@@ -73,6 +73,15 @@ struct _PchatTextViewChatPrivate
 	
 	/* Line counter */
 	gint line_count;
+
+	/* Coalesced scroll-to-end idle (avoid one g_idle_add per appended line) */
+	guint scroll_idle_id;
+	gboolean pending_scroll;
+
+	/* Cached cursors so we don't re-create them on every motion event */
+	GdkCursor *cursor_hand;
+	GdkCursor *cursor_text;
+	gboolean cursor_is_hand;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (PchatTextViewChat, pchat_textview_chat, GTK_TYPE_TEXT_VIEW)
@@ -83,13 +92,6 @@ enum {
 };
 
 static guint signals[LAST_SIGNAL] = { 0 };
-
-/* Idle callback data for deferred scrolling */
-typedef struct {
-	PchatTextViewChat *chat;
-	GtkTextMark *mark;
-	gboolean should_scroll; /* Whether we should scroll (saved before text append) */
-} ScrollData;
 
 /* Helper function to check if scrolled to bottom */
 static gboolean
@@ -130,49 +132,55 @@ is_scrolled_to_bottom (GtkTextView *text_view)
 static gboolean
 scroll_to_mark_idle (gpointer user_data)
 {
-	ScrollData *data = user_data;
-	GtkTextBuffer *view_buffer, *mark_buffer;
+	PchatTextViewChat *chat = user_data;
+	PchatTextViewChatPrivate *priv;
 	GtkWidget *parent;
 	GtkAdjustment *vadj;
-	
-	if (GTK_IS_TEXT_VIEW (data->chat) && GTK_IS_TEXT_MARK (data->mark))
+
+	if (!PCHAT_IS_TEXTVIEW_CHAT (chat))
+		return G_SOURCE_REMOVE;
+
+	priv = chat->priv;
+	priv->scroll_idle_id = 0;
+
+	if (!priv->pending_scroll)
+		return G_SOURCE_REMOVE;
+	priv->pending_scroll = FALSE;
+
+	if (!gtk_widget_get_realized (GTK_WIDGET (chat)))
+		return G_SOURCE_REMOVE;
+
+	parent = gtk_widget_get_parent (GTK_WIDGET (chat));
+	while (parent && !GTK_IS_SCROLLED_WINDOW (parent))
+		parent = gtk_widget_get_parent (parent);
+
+	if (parent)
 	{
-		/* Check that the mark belongs to the text view's current buffer */
-		view_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (data->chat));
-		mark_buffer = gtk_text_mark_get_buffer (data->mark);
-		
-		if (view_buffer == mark_buffer && data->should_scroll)
+		vadj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (parent));
+		if (vadj)
 		{
-			/* Make sure the widget is properly realized and mapped */
-			if (!gtk_widget_get_realized (GTK_WIDGET (data->chat)))
-				gtk_widget_realize (GTK_WIDGET (data->chat));
-			
-			/* Force a redraw to ensure content is visible */
-			gtk_widget_queue_draw (GTK_WIDGET (data->chat));
-			
-			/* Find the scrolled window and scroll to bottom by setting adjustment */
-			parent = gtk_widget_get_parent (GTK_WIDGET (data->chat));
-			while (parent && !GTK_IS_SCROLLED_WINDOW (parent))
-			{
-				parent = gtk_widget_get_parent (parent);
-			}
-			
-			if (parent)
-			{
-				vadj = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (parent));
-				if (vadj)
-				{
-					gdouble upper = gtk_adjustment_get_upper (vadj);
-					gdouble page_size = gtk_adjustment_get_page_size (vadj);
-					gdouble new_value = upper - page_size;
-					gtk_adjustment_set_value (vadj, new_value);
-				}
-			}
+			gdouble upper = gtk_adjustment_get_upper (vadj);
+			gdouble page_size = gtk_adjustment_get_page_size (vadj);
+			gtk_adjustment_set_value (vadj, upper - page_size);
 		}
 	}
-	
-	g_free (data);
+
 	return G_SOURCE_REMOVE;
+}
+
+/* Schedule a single coalesced scroll-to-end. Multiple calls between idle
+ * dispatches collapse into one source; pending_scroll latches to TRUE if any
+ * caller wanted to scroll. */
+static void
+pchat_textview_chat_request_scroll (PchatTextViewChat *chat, gboolean should_scroll)
+{
+	PchatTextViewChatPrivate *priv = chat->priv;
+
+	if (should_scroll)
+		priv->pending_scroll = TRUE;
+
+	if (priv->scroll_idle_id == 0)
+		priv->scroll_idle_id = g_idle_add (scroll_to_mark_idle, chat);
 }
 
 static void
@@ -310,70 +318,87 @@ pchat_textview_chat_button_press (GtkWidget *widget, GdkEventButton *button_even
 	return FALSE;
 }
 
+/* Lazily allocate cached cursors on first need (after realize). */
+static void
+ensure_cursors (PchatTextViewChat *chat, GdkWindow *window)
+{
+	PchatTextViewChatPrivate *priv = chat->priv;
+	GdkDisplay *display;
+
+	if (priv->cursor_hand && priv->cursor_text)
+		return;
+
+	display = gdk_window_get_display (window);
+	if (!priv->cursor_hand)
+		priv->cursor_hand = gdk_cursor_new_for_display (display, GDK_HAND2);
+	if (!priv->cursor_text)
+		priv->cursor_text = gdk_cursor_new_for_display (display, GDK_XTERM);
+}
+
 static gboolean
 pchat_textview_chat_motion_notify (GtkWidget *widget, GdkEventMotion *event, gpointer user_data)
 {
 	PchatTextViewChat *chat = PCHAT_TEXTVIEW_CHAT (widget);
-	GtkTextBuffer *buffer;
+	PchatTextViewChatPrivate *priv = chat->priv;
 	GtkTextIter iter;
 	GSList *tags = NULL, *tagp = NULL;
 	gint x, y;
 	gboolean over_url = FALSE;
 	GdkWindow *window;
-	GdkCursor *cursor = NULL;
 
-	buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW (widget));
 	gtk_text_view_window_to_buffer_coords (GTK_TEXT_VIEW (widget),
 	                                        GTK_TEXT_WINDOW_WIDGET,
 	                                        event->x, event->y,
 	                                        &x, &y);
 	gtk_text_view_get_iter_at_location (GTK_TEXT_VIEW (widget), &iter, x, y);
-	
+
 	/* Check if URL tag is present */
 	tags = gtk_text_iter_get_tags (&iter);
 	for (tagp = tags; tagp != NULL; tagp = tagp->next)
 	{
-		GtkTextTag *tag = tagp->data;
-		
-		if (tag == chat->priv->url_tag)
+		if (tagp->data == priv->url_tag)
 		{
 			over_url = TRUE;
 			break;
 		}
 	}
-	
 	if (tags)
 		g_slist_free (tags);
-	
-	/* Set cursor based on whether we're over a URL */
+
+	/* Only update the cursor when the desired shape actually changes;
+	 * gdk_window_set_cursor is comparatively expensive on some backends. */
+	if (over_url == priv->cursor_is_hand)
+		return FALSE;
+
 	window = gtk_text_view_get_window (GTK_TEXT_VIEW (widget), GTK_TEXT_WINDOW_TEXT);
-	if (over_url)
-	{
-		cursor = gdk_cursor_new_for_display (gdk_window_get_display (window), GDK_HAND2);
-	}
-	else
-	{
-		cursor = gdk_cursor_new_for_display (gdk_window_get_display (window), GDK_XTERM);
-	}
-	
-	gdk_window_set_cursor (window, cursor);
-	g_object_unref (cursor);
-	
+	if (!window)
+		return FALSE;
+
+	ensure_cursors (chat, window);
+	gdk_window_set_cursor (window, over_url ? priv->cursor_hand : priv->cursor_text);
+	priv->cursor_is_hand = over_url;
+
 	return FALSE;
 }
 
 static gboolean
 pchat_textview_chat_leave_notify (GtkWidget *widget, GdkEventCrossing *event, gpointer user_data)
 {
+	PchatTextViewChat *chat = PCHAT_TEXTVIEW_CHAT (widget);
+	PchatTextViewChatPrivate *priv = chat->priv;
 	GdkWindow *window;
-	GdkCursor *cursor;
-	
-	/* Reset cursor to default when leaving the widget */
+
+	if (!priv->cursor_is_hand)
+		return FALSE; /* already showing the text cursor */
+
 	window = gtk_text_view_get_window (GTK_TEXT_VIEW (widget), GTK_TEXT_WINDOW_TEXT);
-	cursor = gdk_cursor_new_for_display (gdk_window_get_display (window), GDK_XTERM);
-	gdk_window_set_cursor (window, cursor);
-	g_object_unref (cursor);
-	
+	if (!window)
+		return FALSE;
+
+	ensure_cursors (chat, window);
+	gdk_window_set_cursor (window, priv->cursor_text);
+	priv->cursor_is_hand = FALSE;
+
 	return FALSE;
 }
 
@@ -399,7 +424,14 @@ pchat_textview_chat_finalize (GObject *object)
 	PchatTextViewChat *chat = PCHAT_TEXTVIEW_CHAT (object);
 	PchatTextViewChatPrivate *priv = chat->priv;
 	GtkStyleContext *context;
-	
+
+	/* Cancel any pending scroll idle so it can't fire after we're gone. */
+	if (priv->scroll_idle_id != 0)
+	{
+		g_source_remove (priv->scroll_idle_id);
+		priv->scroll_idle_id = 0;
+	}
+
 	/* Remove CSS providers before finalizing */
 	context = gtk_widget_get_style_context (GTK_WIDGET (chat));
 	if (priv->font_provider)
@@ -414,9 +446,12 @@ pchat_textview_chat_finalize (GObject *object)
 		g_object_unref (priv->palette_provider);
 		priv->palette_provider = NULL;
 	}
-	
+
+	g_clear_object (&priv->cursor_hand);
+	g_clear_object (&priv->cursor_text);
+
 	g_free (priv->font_name);
-	
+
 	G_OBJECT_CLASS (pchat_textview_chat_parent_class)->finalize (object);
 }
 
@@ -551,23 +586,19 @@ void
 pchat_chat_buffer_show (PchatTextViewChat *chat, PchatChatBuffer *buf)
 {
 	PchatTextViewChatPrivate *priv = chat->priv;
-	
+
 	if (!buf)
 		return;
-	
+
 	priv->current_buffer = buf;
 	gtk_text_view_set_buffer (GTK_TEXT_VIEW (chat), buf->buffer);
-	
-	/* Force the widget to realize it needs to redraw */
-	gtk_widget_queue_draw (GTK_WIDGET (chat));
-	gtk_widget_queue_resize (GTK_WIDGET (chat));
-	
-	/* Scroll to end using idle callback to ensure proper layout */
-	ScrollData *scroll_data = g_new0 (ScrollData, 1);
-	scroll_data->chat = chat;
-	scroll_data->mark = buf->end_mark;
-	scroll_data->should_scroll = TRUE; /* Always scroll when showing a buffer */
-	g_idle_add (scroll_to_mark_idle, scroll_data);
+
+	/* set_buffer already invalidates the widget; an explicit queue_draw
+	 * is unnecessary, and queue_resize forces a full layout pass which
+	 * is far too heavy for a buffer switch. */
+
+	/* Always scroll to bottom when showing a buffer. */
+	pchat_textview_chat_request_scroll (chat, TRUE);
 }
 
 PchatChatBuffer *
@@ -630,21 +661,23 @@ flush_text_with_formatting (GtkTextBuffer *buffer, GtkTextIter *iter, GString *t
                              gboolean strikethrough, gboolean hidden, gboolean reverse,
                              gint fg_color, gint bg_color)
 {
-	GtkTextMark *start_mark;
 	GtkTextIter start_iter;
+	gint start_offset;
 	gchar *p, *word_start;
-	
+
 	if (text->len == 0)
 		return;
-	
-	/* Mark position before insert */
-	start_mark = gtk_text_buffer_create_mark (buffer, NULL, iter, TRUE);
-	
+
+	/* Remember the insert position by character offset, which is stable across
+	 * the insert (gtk_text_buffer_insert advances *iter past the new text).
+	 * This avoids the heavy create/delete-mark dance done previously. */
+	start_offset = gtk_text_iter_get_offset (iter);
+
 	/* Insert text */
 	gtk_text_buffer_insert (buffer, iter, text->str, text->len);
-	
-	/* Get start position */
-	gtk_text_buffer_get_iter_at_mark (buffer, &start_iter, start_mark);
+
+	/* Recover start position */
+	gtk_text_buffer_get_iter_at_offset (buffer, &start_iter, start_offset);
 	
 	/* Apply formatting tags */
 	if (bold)
@@ -678,49 +711,55 @@ flush_text_with_formatting (GtkTextBuffer *buffer, GtkTextIter *iter, GString *t
 	if (priv->urlcheck_func)
 	{
 		GtkTextIter word_start_iter, word_end_iter;
+		gchar saved;
 		p = text->str;
 		word_start = p;
-		
+
 		while (*p)
 		{
-			if (isspace (*p))
+			if (g_ascii_isspace ((guchar) *p))
 			{
 				if (p > word_start)
 				{
-					gchar *word = g_strndup (word_start, p - word_start);
-					if (priv->urlcheck_func (widget, word))
+					/* Avoid g_strndup per word: temporarily NUL-terminate. */
+					saved = *p;
+					*p = '\0';
+					if (priv->urlcheck_func (widget, word_start))
 					{
-						/* Apply URL tag to this word */
+						/* gtk_text_iter_forward_chars takes a *character* count,
+						 * not bytes. Convert via g_utf8_pointer_to_offset so that
+						 * URL tags land in the right place for non-ASCII text. */
 						word_start_iter = start_iter;
-						gtk_text_iter_forward_chars (&word_start_iter, word_start - text->str);
+						gtk_text_iter_forward_chars (&word_start_iter,
+							g_utf8_pointer_to_offset (text->str, word_start));
 						word_end_iter = word_start_iter;
-						gtk_text_iter_forward_chars (&word_end_iter, p - word_start);
+						gtk_text_iter_forward_chars (&word_end_iter,
+							g_utf8_pointer_to_offset (word_start, p));
 						gtk_text_buffer_apply_tag (buffer, priv->url_tag, &word_start_iter, &word_end_iter);
 					}
-					g_free (word);
+					*p = saved;
 				}
 				word_start = p + 1;
 			}
 			p++;
 		}
-		
+
 		/* Check last word */
 		if (p > word_start)
 		{
-			gchar *word = g_strndup (word_start, p - word_start);
-			if (priv->urlcheck_func (widget, word))
+			if (priv->urlcheck_func (widget, word_start))
 			{
 				word_start_iter = start_iter;
-				gtk_text_iter_forward_chars (&word_start_iter, word_start - text->str);
+				gtk_text_iter_forward_chars (&word_start_iter,
+					g_utf8_pointer_to_offset (text->str, word_start));
 				word_end_iter = word_start_iter;
-				gtk_text_iter_forward_chars (&word_end_iter, p - word_start);
+				gtk_text_iter_forward_chars (&word_end_iter,
+					g_utf8_pointer_to_offset (word_start, p));
 				gtk_text_buffer_apply_tag (buffer, priv->url_tag, &word_start_iter, &word_end_iter);
 			}
-			g_free (word);
 		}
 	}
-	
-	gtk_text_buffer_delete_mark (buffer, start_mark);
+
 	g_string_truncate (text, 0);
 }
 
@@ -825,18 +864,29 @@ pchat_textview_chat_append_with_formatting (PchatTextViewChat *chat, GtkTextBuff
 		}
 		else
 		{
-			/* Filter out non-printable characters except newlines */
-			if (*p < 32 && *p != '\n' && *p != '\t')
+			/* Accumulate a run of regular characters in one append.
+			 * Skip non-printable controls (other than newline/tab). */
+			const gchar *run_start = p;
+			while (p < end)
 			{
-				/* Skip non-printable control characters */
+				guchar c = (guchar) *p;
+				if (c == IRC_BOLD || c == IRC_ITALIC || c == IRC_UNDERLINE ||
+				    c == IRC_STRIKETHROUGH || c == IRC_HIDDEN || c == IRC_REVERSE ||
+				    c == IRC_BLINK || c == IRC_BEEP || c == IRC_COLOR || c == IRC_RESET)
+					break;
+				if (c < 32 && c != '\n' && c != '\t')
+				{
+					/* Flush the run so far, skip the bad byte, then continue. */
+					if (p > run_start)
+						g_string_append_len (current_text, run_start, p - run_start);
+					p++;
+					run_start = p;
+					continue;
+				}
 				p++;
 			}
-			else
-			{
-				/* Regular character - accumulate it */
-				g_string_append_c (current_text, *p);
-				p++;
-			}
+			if (p > run_start)
+				g_string_append_len (current_text, run_start, p - run_start);
 		}
 	}
 	
@@ -845,34 +895,49 @@ pchat_textview_chat_append_with_formatting (PchatTextViewChat *chat, GtkTextBuff
 	g_string_free (current_text, TRUE);
 }
 
+/* Trim oldest lines from a buffer to enforce priv->max_lines. Cheap when no
+ * trimming is needed (the common case). */
+static void
+prune_buffer_to_max_lines (PchatTextViewChatPrivate *priv, PchatChatBuffer *buf)
+{
+	gint excess;
+	GtkTextIter start, end;
+
+	if (priv->max_lines <= 0 || buf->line_count <= priv->max_lines)
+		return;
+
+	excess = buf->line_count - priv->max_lines;
+	gtk_text_buffer_get_start_iter (buf->buffer, &start);
+	gtk_text_buffer_get_iter_at_line (buf->buffer, &end, excess);
+	gtk_text_buffer_delete (buf->buffer, &start, &end);
+	buf->line_count -= excess;
+}
+
 void
 pchat_textview_chat_append (PchatTextViewChat *chat, const gchar *text, gsize len)
 {
-	PchatTextViewChatPrivate *priv = chat->priv;
+	PchatTextViewChatPrivate *priv;
 	PchatChatBuffer *buf;
 	gboolean was_at_bottom;
-	
+
 	g_return_if_fail (PCHAT_IS_TEXTVIEW_CHAT (chat));
-	
+
+	priv = chat->priv;
 	buf = priv->current_buffer;
 	if (!buf)
 		return;
-	
+
 	if (len == 0)
 		len = strlen (text);
-	
+
 	/* Check if we're at bottom BEFORE appending text */
 	was_at_bottom = is_scrolled_to_bottom (GTK_TEXT_VIEW (chat));
-	
+
 	pchat_textview_chat_append_with_formatting (chat, buf->buffer, text, len);
 	buf->line_count++;
-	
-	/* Auto-scroll to bottom using idle callback to ensure layout is complete */
-	ScrollData *scroll_data = g_new0 (ScrollData, 1);
-	scroll_data->chat = chat;
-	scroll_data->mark = buf->end_mark;
-	scroll_data->should_scroll = was_at_bottom;
-	g_idle_add (scroll_to_mark_idle, scroll_data);
+	prune_buffer_to_max_lines (priv, buf);
+
+	pchat_textview_chat_request_scroll (chat, was_at_bottom);
 }
 
 /* Buffer-specific append - for appending to buffers that aren't currently shown */
@@ -882,32 +947,27 @@ pchat_chat_buffer_append (PchatChatBuffer *buf, PchatTextViewChat *chat,
 {
 	gboolean was_at_bottom = FALSE;
 	gboolean is_current_buffer = FALSE;
-	
+
 	if (!buf || !chat)
 		return;
-	
+
 	if (len == 0)
 		len = strlen (text);
-	
+
 	/* Check if this is the currently displayed buffer */
 	is_current_buffer = (buf == chat->priv->current_buffer);
-	
+
 	/* If appending to the current buffer, check scroll position before appending */
 	if (is_current_buffer)
 		was_at_bottom = is_scrolled_to_bottom (GTK_TEXT_VIEW (chat));
-	
+
 	pchat_textview_chat_append_with_formatting (chat, buf->buffer, text, len);
 	buf->line_count++;
-	
+	prune_buffer_to_max_lines (chat->priv, buf);
+
 	/* Auto-scroll if this is the current buffer and we were at bottom */
 	if (is_current_buffer && was_at_bottom)
-	{
-		ScrollData *scroll_data = g_new0 (ScrollData, 1);
-		scroll_data->chat = chat;
-		scroll_data->mark = buf->end_mark;
-		scroll_data->should_scroll = TRUE;
-		g_idle_add (scroll_to_mark_idle, scroll_data);
-	}
+		pchat_textview_chat_request_scroll (chat, TRUE);
 }
 
 void
@@ -915,29 +975,36 @@ pchat_textview_chat_append_with_stamp (PchatTextViewChat *chat, PchatChatBuffer 
                                         const gchar *text, gsize len, time_t stamp)
 {
 	GString *full_text;
-	
+
 	g_return_if_fail (PCHAT_IS_TEXTVIEW_CHAT (chat));
-	
+
 	if (!buf)
 		return;
-	
-	full_text = g_string_new (NULL);
-	
+
+	/* Pre-size: text + a bit for timestamp + newline. */
+	full_text = g_string_sized_new ((text ? len : 0) + 32);
+
 	/* Add timestamp if enabled */
 	if (chat->priv->show_timestamps && stamp != 0)
 	{
-		struct tm *tm_ptr = localtime (&stamp);
-		gchar time_str[64];
-		strftime (time_str, sizeof (time_str), "%H:%M:%S ", tm_ptr);
-		g_string_append (full_text, time_str);
+		struct tm tm_buf;
+#ifdef _WIN32
+		localtime_s (&tm_buf, &stamp);
+#else
+		localtime_r (&stamp, &tm_buf);
+#endif
+		gchar time_str[32];
+		gsize n = strftime (time_str, sizeof (time_str), "%H:%M:%S ", &tm_buf);
+		if (n)
+			g_string_append_len (full_text, time_str, n);
 	}
-	
+
 	/* Add text */
 	if (text && len > 0)
 		g_string_append_len (full_text, text, len);
-	
+
 	g_string_append_c (full_text, '\n');
-	
+
 	pchat_chat_buffer_append (buf, chat, full_text->str, full_text->len);
 	g_string_free (full_text, TRUE);
 }
@@ -949,37 +1016,43 @@ pchat_textview_chat_append_indent (PchatTextViewChat *chat, PchatChatBuffer *buf
                                     time_t stamp)
 {
 	GString *full_text;
-	
+
 	g_return_if_fail (PCHAT_IS_TEXTVIEW_CHAT (chat));
-	
+
 	if (!buf)
 		return;
-	
-	full_text = g_string_new (NULL);
-	
+
+	full_text = g_string_sized_new (left_len + right_len + 32);
+
 	/* Add timestamp if enabled */
 	if (chat->priv->show_timestamps && stamp != 0)
 	{
-		struct tm *tm_ptr = localtime (&stamp);
-		gchar time_str[64];
-		strftime (time_str, sizeof (time_str), "%H:%M:%S ", tm_ptr);
-		g_string_append (full_text, time_str);
+		struct tm tm_buf;
+#ifdef _WIN32
+		localtime_s (&tm_buf, &stamp);
+#else
+		localtime_r (&stamp, &tm_buf);
+#endif
+		gchar time_str[32];
+		gsize n = strftime (time_str, sizeof (time_str), "%H:%M:%S ", &tm_buf);
+		if (n)
+			g_string_append_len (full_text, time_str, n);
 	}
-	
+
 	/* Add left text */
 	if (left_text && left_len > 0)
 	{
 		g_string_append_len (full_text, left_text, left_len);
 		if (chat->priv->indent)
-			g_string_append (full_text, " ");
+			g_string_append_c (full_text, ' ');
 	}
-	
+
 	/* Add right text */
 	if (right_text && right_len > 0)
 		g_string_append_len (full_text, right_text, right_len);
-	
+
 	g_string_append_c (full_text, '\n');
-	
+
 	pchat_chat_buffer_append (buf, chat, full_text->str, full_text->len);
 	g_string_free (full_text, TRUE);
 }
@@ -991,35 +1064,41 @@ pchat_chat_buffer_append_indent (PchatChatBuffer *buf, PchatTextViewChat *chat,
                                   time_t stamp)
 {
 	GString *full_text;
-	
+
 	if (!buf || !chat)
 		return;
-	
-	full_text = g_string_new (NULL);
-	
+
+	full_text = g_string_sized_new (left_len + right_len + 32);
+
 	/* Add timestamp if enabled */
 	if (chat->priv->show_timestamps && stamp != 0)
 	{
-		struct tm *tm_ptr = localtime (&stamp);
-		gchar time_str[64];
-		strftime (time_str, sizeof (time_str), "%H:%M:%S ", tm_ptr);
-		g_string_append (full_text, time_str);
+		struct tm tm_buf;
+#ifdef _WIN32
+		localtime_s (&tm_buf, &stamp);
+#else
+		localtime_r (&stamp, &tm_buf);
+#endif
+		gchar time_str[32];
+		gsize n = strftime (time_str, sizeof (time_str), "%H:%M:%S ", &tm_buf);
+		if (n)
+			g_string_append_len (full_text, time_str, n);
 	}
-	
+
 	/* Add left text */
 	if (left_text && left_len > 0)
 	{
 		g_string_append_len (full_text, left_text, left_len);
 		if (chat->priv->indent)
-			g_string_append (full_text, " ");
+			g_string_append_c (full_text, ' ');
 	}
-	
+
 	/* Add right text */
 	if (right_text && right_len > 0)
 		g_string_append_len (full_text, right_text, right_len);
-	
+
 	g_string_append_c (full_text, '\n');
-	
+
 	pchat_chat_buffer_append (buf, chat, full_text->str, full_text->len);
 	g_string_free (full_text, TRUE);
 }

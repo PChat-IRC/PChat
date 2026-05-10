@@ -197,10 +197,9 @@ scrollback_save (session *sess, char *text, time_t stamp)
 
 	if (!stamp)
 		stamp = time(0);
-	if (sizeof (stamp) == 4)	/* gcc will optimize one of these out */
-		buf = g_strdup_printf ("T %d ", (int) stamp);
-	else
-		buf = g_strdup_printf ("T %" G_GINT64_FORMAT " ", (gint64)stamp);
+	/* Always serialise as 64-bit so files are portable across platforms
+	 * regardless of native time_t width. */
+	buf = g_strdup_printf ("T %" G_GINT64_FORMAT " ", (gint64) stamp);
 
 	g_output_stream_write (ostream, buf, strlen (buf), NULL, NULL);
 	g_output_stream_write (ostream, text, strlen (text), NULL, NULL);
@@ -276,10 +275,9 @@ scrollback_load (session *sess)
 			 */
 			if (buf[0] == 'T' && buf[1] == ' ')
 			{
-				if (sizeof (time_t) == 4)
-					stamp = strtoul (buf + 2, NULL, 10);
-				else
-					stamp = g_ascii_strtoull (buf + 2, NULL, 10); /* in case time_t is 64 bits */
+				/* Scrollback files always store 64-bit timestamps; parse as such
+				 * regardless of the local time_t width. */
+				stamp = (time_t) g_ascii_strtoull (buf + 2, NULL, 10);
 
 				if (G_UNLIKELY(stamp == 0))
 				{

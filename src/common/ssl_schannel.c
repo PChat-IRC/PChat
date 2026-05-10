@@ -127,10 +127,9 @@ const char *
 pchat_ssl_backend_version (void)
 {
 	static char buf[64];
-	OSVERSIONINFOEXA ovi;
+	OSVERSIONINFOEXA ovi = { 0 };
 	if (buf[0])
 		return buf;
-	memset (&ovi, 0, sizeof (ovi));
 	ovi.dwOSVersionInfoSize = sizeof (ovi);
 #pragma warning(push)
 #pragma warning(disable: 4996)
@@ -973,7 +972,7 @@ pchat_ssl_get_cipher_info (pchat_ssl *s)
 	SecPkgContext_ConnectionInfo info;
 	SecPkgContext_CipherInfo cinfo;
 
-	memset (&ci, 0, sizeof (ci));
+	memset (&ci, 0, sizeof (ci));	/* static — reset on each call */
 	if (!s || !s->handshake_done)
 		return &ci;
 

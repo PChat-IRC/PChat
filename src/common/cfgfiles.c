@@ -179,7 +179,7 @@ cfg_get_str (char *cfg, const char *var, char *dest, int dest_len)
 {
 	char buffer[128];	/* should be plenty for a variable name */
 
-	sprintf (buffer, "%s ", var);	/* add one space, this way it works against var - var2 checks too */
+	g_snprintf (buffer, sizeof (buffer), "%s ", var);	/* add one space, this way it works against var - var2 checks too */
 
 	while (1)
 	{
@@ -848,8 +848,8 @@ load_default_config(void)
 	prefs.pchat_url_grabber_limit = 100; 		/* 0 means unlimited */
 
 	/* STRINGS */
-	strcpy (prefs.pchat_away_reason, _("I'm busy"));
-	strcpy (prefs.pchat_completion_suffix, ",");
+	g_strlcpy (prefs.pchat_away_reason, _("I'm busy"), sizeof (prefs.pchat_away_reason));
+	g_strlcpy (prefs.pchat_completion_suffix, ",", sizeof (prefs.pchat_completion_suffix));
 #ifdef WIN32
 	if (portable_mode () || SHGetKnownFolderPath (&FOLDERID_Downloads, 0, NULL, &roaming_path_wide) != S_OK)
 	{
@@ -876,21 +876,21 @@ load_default_config(void)
 		g_free (download_dir);
 	}
 #endif
-	strcpy (prefs.pchat_gui_ulist_doubleclick, "QUERY %s");
-	strcpy (prefs.pchat_input_command_char, "/");
-	strcpy (prefs.pchat_irc_logmask, "%n"G_DIR_SEPARATOR_S"%c.log");
+	g_strlcpy (prefs.pchat_gui_ulist_doubleclick, "QUERY %s", sizeof (prefs.pchat_gui_ulist_doubleclick));
+	g_strlcpy (prefs.pchat_input_command_char, "/", sizeof (prefs.pchat_input_command_char));
+	g_strlcpy (prefs.pchat_irc_logmask, "%n"G_DIR_SEPARATOR_S"%c.log", sizeof (prefs.pchat_irc_logmask));
 	safe_strcpy (prefs.pchat_irc_nick1, username, sizeof(prefs.pchat_irc_nick1));
 	safe_strcpy (prefs.pchat_irc_nick2, username, sizeof(prefs.pchat_irc_nick2));
 	g_strlcat (prefs.pchat_irc_nick2, "_", sizeof(prefs.pchat_irc_nick2));
 	safe_strcpy (prefs.pchat_irc_nick3, username, sizeof(prefs.pchat_irc_nick3));
 	g_strlcat (prefs.pchat_irc_nick3, "__", sizeof(prefs.pchat_irc_nick3));
-	strcpy (prefs.pchat_irc_no_hilight, "NickServ,ChanServ,InfoServ,N,Q");
+	g_strlcpy (prefs.pchat_irc_no_hilight, "NickServ,ChanServ,InfoServ,N,Q", sizeof (prefs.pchat_irc_no_hilight));
 	safe_strcpy (prefs.pchat_irc_part_reason, _("Leaving"), sizeof(prefs.pchat_irc_part_reason));
 	safe_strcpy (prefs.pchat_irc_quit_reason, prefs.pchat_irc_part_reason, sizeof(prefs.pchat_irc_quit_reason));
 	safe_strcpy (prefs.pchat_irc_real_name, realname, sizeof(prefs.pchat_irc_real_name));
 	safe_strcpy (prefs.pchat_irc_user_name, username, sizeof(prefs.pchat_irc_user_name));
-	strcpy (prefs.pchat_stamp_log_format, "%b %d %H:%M:%S ");
-	strcpy (prefs.pchat_stamp_text_format, "[%H:%M:%S] ");
+	g_strlcpy (prefs.pchat_stamp_log_format, "%b %d %H:%M:%S ", sizeof (prefs.pchat_stamp_log_format));
+	g_strlcpy (prefs.pchat_stamp_text_format, "[%H:%M:%S] ", sizeof (prefs.pchat_stamp_text_format));
 
 	font = fe_get_default_font ();
 	if (font)
@@ -900,11 +900,11 @@ load_default_config(void)
 	}
 	else
 	{
-		strcpy (prefs.pchat_text_font, DEF_FONT);
-		strcpy (prefs.pchat_text_font_main, DEF_FONT);
+		g_strlcpy (prefs.pchat_text_font, DEF_FONT, sizeof (prefs.pchat_text_font));
+		g_strlcpy (prefs.pchat_text_font_main, DEF_FONT, sizeof (prefs.pchat_text_font_main));
 	}
 
-	strcpy (prefs.pchat_text_font_alternative, DEF_FONT_ALTER);
+	g_strlcpy (prefs.pchat_text_font_alternative, DEF_FONT_ALTER, sizeof (prefs.pchat_text_font_alternative));
 	langs = get_default_spell_languages ();
 	safe_strcpy (prefs.pchat_text_spell_langs, langs, sizeof(prefs.pchat_text_spell_langs));
 
@@ -1111,19 +1111,19 @@ set_showval (session *sess, const struct prefs *var, char *tbuf)
 	switch (var->type)
 	{
 		case TYPE_STR:
-			sprintf (tbuf + len, "\0033:\017 %s\n", (char *) &prefs + var->offset);
+			g_snprintf (tbuf + len, 4096 - len, "\0033:\017 %s\n", (char *) &prefs + var->offset);
 			break;
 		case TYPE_INT:
-			sprintf (tbuf + len, "\0033:\017 %d\n", *((int *) &prefs + var->offset));
+			g_snprintf (tbuf + len, 4096 - len, "\0033:\017 %d\n", *((int *) &prefs + var->offset));
 			break;
 		case TYPE_BOOL:
 			if (*((int *) &prefs + var->offset))
 			{
-				sprintf (tbuf + len, "\0033:\017 %s\n", "ON");
+				g_snprintf (tbuf + len, 4096 - len, "\0033:\017 %s\n", "ON");
 			}
 			else
 			{
-				sprintf (tbuf + len, "\0033:\017 %s\n", "OFF");
+				g_snprintf (tbuf + len, 4096 - len, "\0033:\017 %s\n", "OFF");
 			}
 			break;
 	}

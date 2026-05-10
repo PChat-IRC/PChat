@@ -143,7 +143,7 @@ chanopt_command (session *sess, char *tbuf, char *word[], char *word_eol[])
 
 			if (!quiet)	/* print value */
 			{
-				strcpy (tbuf, chanopt[i].name);
+				g_strlcpy (tbuf, chanopt[i].name, 4096);
 				p = strlen (tbuf);
 
 				tbuf[p++] = 3;

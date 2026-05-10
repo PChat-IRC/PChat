@@ -3318,7 +3318,7 @@ cmd_send (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 {
 	guint32 addr;
 	socklen_t len;
-	struct sockaddr_in SAddr;
+	struct sockaddr_in SAddr = { 0 };
 
 	if (!word[2][0])
 		return FALSE;
@@ -3327,7 +3327,6 @@ cmd_send (struct session *sess, char *tbuf, char *word[], char *word_eol[])
 	if (addr == 0)
 	{
 		/* use the one from our connected server socket */
-		memset (&SAddr, 0, sizeof (struct sockaddr_in));
 		len = sizeof (SAddr);
 		getsockname (sess->server->sok, (struct sockaddr *) &SAddr, &len);
 		addr = SAddr.sin_addr.s_addr;

@@ -72,7 +72,7 @@ get_windows_version_fallback (char *out, gsize out_size)
 	typedef LONG (WINAPI *RtlGetVersionPtr) (PRTL_OSVERSIONINFOW);
 	HMODULE ntdll;
 	RtlGetVersionPtr fn;
-	RTL_OSVERSIONINFOW vi;
+	RTL_OSVERSIONINFOW vi = { 0 };
 
 	ntdll = GetModuleHandleW (L"ntdll.dll");
 	if (ntdll == NULL)
@@ -82,7 +82,6 @@ get_windows_version_fallback (char *out, gsize out_size)
 	if (fn == NULL)
 		return FALSE;
 
-	memset (&vi, 0, sizeof (vi));
 	vi.dwOSVersionInfoSize = sizeof (vi);
 	if (fn (&vi) != 0)
 		return FALSE;
