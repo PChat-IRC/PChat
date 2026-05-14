@@ -144,13 +144,43 @@ if(ISO_CODES_FOUND)
     # Get ISO codes prefix from pkg-config
     execute_process(
         COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=prefix iso-codes
-        OUTPUT_VARIABLE ISO_CODES_PREFIX
+        OUTPUT_VARIABLE ISO_CODES_BUILD_PREFIX
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    target_compile_definitions(pchat PRIVATE 
+    # On Windows installs we ship the iso-codes data files inside PChat's own
+    # share/ directory (see install(DIRECTORY ...) below), so point the
+    # compile-time ISO_CODES_PREFIX macro at the PChat install prefix. On
+    # other platforms iso-codes is a system package, so use its real prefix.
+    if(WIN32)
+        set(ISO_CODES_RUNTIME_PREFIX "${CMAKE_INSTALL_PREFIX}")
+    else()
+        set(ISO_CODES_RUNTIME_PREFIX "${ISO_CODES_BUILD_PREFIX}")
+    endif()
+    target_compile_definitions(pchat PRIVATE
         HAVE_ISO_CODES=1
-        ISO_CODES_PREFIX="${ISO_CODES_PREFIX}"
+        ISO_CODES_PREFIX="${ISO_CODES_RUNTIME_PREFIX}"
     )
+
+    # Bundle the iso-codes data alongside PChat. sexy-iso-codes.c reads
+    # share/xml/iso-codes/iso_{639,3166}.xml, and gettext loads
+    # share/locale/<lang>/LC_MESSAGES/iso_{639,3166}.mo via bindtextdomain().
+    if(WIN32 AND EXISTS "${ISO_CODES_BUILD_PREFIX}/share/xml/iso-codes")
+        install(DIRECTORY "${ISO_CODES_BUILD_PREFIX}/share/xml/iso-codes"
+                DESTINATION "${CMAKE_INSTALL_DATADIR}/xml"
+                COMPONENT Runtime
+                FILES_MATCHING PATTERN "iso_639.xml" PATTERN "iso_3166.xml")
+        # Translations: only iso_639*.mo and iso_3166*.mo, scattered across
+        # locale directories. Install the whole share/locale tree filtered to
+        # those domains.
+        install(DIRECTORY "${ISO_CODES_BUILD_PREFIX}/share/locale/"
+                DESTINATION "${CMAKE_INSTALL_DATADIR}/locale"
+                COMPONENT Runtime
+                FILES_MATCHING
+                    PATTERN "iso_639.mo"
+                    PATTERN "iso_639_3.mo"
+                    PATTERN "iso_3166.mo"
+                    PATTERN "iso_3166-2.mo")
+    endif()
 endif()
 
 # Generate resources
@@ -215,12 +245,19 @@ target_link_directories(pchat PRIVATE
 
 target_link_libraries(pchat PRIVATE
     pchatcommon
-    ${GTK3_LIBRARIES}
-    ${GLIB_LIBRARIES}
-    ${APPINDICATOR_LIBRARIES}
-    ${LIBSOUP_LIBRARIES}
-    ${LIBXML2_LIBRARIES}
+    ${GTK3_LDFLAGS}
+    ${GLIB_LDFLAGS}
+    ${APPINDICATOR_LDFLAGS}
+    ${LIBSOUP_LDFLAGS}
+    ${LIBXML2_LDFLAGS}
 )
+
+# When statically linking GLib/GTK on Windows, expose those symbols from
+# pchat.exe so plugin DLLs can resolve them at runtime against the main exe
+# instead of bundling their own static copy (two parallel GType registries
+# would otherwise crash the process the first time a plugin creates a GTK
+# widget). Generates libpchat.dll.a as the import library plugins link to.
+pchat_configure_exe_for_plugins(pchat)
 
 # macOS frameworks for native notifications
 if(APPLE)
@@ -241,19 +278,20 @@ if(WIN32)
         wbemuuid
         ole32
         oleaut32
+        opengl32
     )
 endif()
 
 if(LIBNOTIFY_FOUND)
     target_include_directories(pchat PRIVATE ${LIBNOTIFY_INCLUDE_DIRS})
     target_link_directories(pchat PRIVATE ${LIBNOTIFY_LIBRARY_DIRS})
-    target_link_libraries(pchat PRIVATE ${LIBNOTIFY_LIBRARIES})
+    target_link_libraries(pchat PRIVATE ${LIBNOTIFY_LDFLAGS})
 endif()
 
 if(LIBCANBERRA_FOUND)
     target_include_directories(pchat PRIVATE ${LIBCANBERRA_INCLUDE_DIRS})
     target_link_directories(pchat PRIVATE ${LIBCANBERRA_LIBRARY_DIRS})
-    target_link_libraries(pchat PRIVATE ${LIBCANBERRA_LIBRARIES})
+    target_link_libraries(pchat PRIVATE ${LIBCANBERRA_LDFLAGS})
 endif()
 
 # macOS integration

@@ -18,6 +18,8 @@ if(NOT OPENSSL_FOUND)
     return()
 endif()
 
+pchat_use_static_pkg_vars(GLIB OPENSSL)
+
 # Plugin source files
 set(PLUGIN_SOURCES
     plugin_pchat.c
@@ -30,6 +32,7 @@ set(PLUGIN_SOURCES
 
 # Create shared library
 add_library(fishlim MODULE ${PLUGIN_SOURCES})
+pchat_apply_static_compile_defs(fishlim)
 
 # Set output name and properties
 set_target_properties(fishlim PROPERTIES
@@ -60,11 +63,12 @@ target_link_directories(fishlim PRIVATE
     ${OPENSSL_LIBRARY_DIRS}
 )
 
-# Link libraries
-target_link_libraries(fishlim
-    ${GLIB_LIBRARIES}
+# Link libraries. GLib symbols are resolved against pchat.exe at runtime on
+# Windows static builds (pchat_link_plugin_runtime). OpenSSL is plugin-private.
+target_link_libraries(fishlim PRIVATE
     ${OPENSSL_LIBRARIES}
 )
+pchat_link_plugin_runtime(fishlim GLIB)
 
 # Compiler flags
 target_compile_options(fishlim PRIVATE

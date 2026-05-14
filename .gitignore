@@ -1,6 +1,8 @@
 # git ignore file
 # Unix generated files
 build/
+vcpkg_installed/
+CMakeUserPresets.json
 .deps/
 .libs/
 Makefile

@@ -34,6 +34,8 @@ endif()
 
 message(STATUS "Found Lua: ${LUA_VERSION_STRING}")
 
+pchat_use_static_pkg_vars(GLIB GMODULE LUA)
+
 # Plugin source files
 set(PLUGIN_SOURCES
     lua.c
@@ -41,6 +43,7 @@ set(PLUGIN_SOURCES
 
 # Create shared library
 add_library(lua MODULE ${PLUGIN_SOURCES})
+pchat_apply_static_compile_defs(lua)
 
 # Set output name and properties
 set_target_properties(lua PROPERTIES
@@ -71,12 +74,12 @@ if(LUA_INCLUDE_DIRS)
     target_include_directories(lua PRIVATE ${LUA_INCLUDE_DIRS})
 endif()
 
-# Link libraries
-target_link_libraries(lua
-    ${GLIB_LIBRARIES}
-    ${GMODULE_LIBRARIES}
+# Link libraries. GLib/GModule symbols come from pchat.exe at runtime on
+# Windows static builds; Lua is plugin-private.
+target_link_libraries(lua PRIVATE
     ${LUA_LIBRARIES}
 )
+pchat_link_plugin_runtime(lua GLIB GMODULE)
 
 # Compiler flags
 target_compile_options(lua PRIVATE

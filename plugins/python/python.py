@@ -556,7 +556,7 @@ def _on_plugin_deinit():
     sys.stderr = sys.__stderr__
     pydoc.help = pydoc.Helper()
 
-    for mod in ('_pchat', 'pchat', 'xchat', '_pchat_embedded'):
+    for mod in ('_pchat', 'pchat', 'xchat', 'hexchat', '_pchat_embedded'):
         try:
             del sys.modules[mod]
 

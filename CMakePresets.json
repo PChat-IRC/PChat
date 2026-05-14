@@ -1,0 +1,131 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "_vcpkg-base",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "installDir": "${sourceDir}/build/${presetName}/install",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "VCPKG_MANIFEST_MODE": "ON"
+            },
+            "environment": {
+                "VCPKG_ROOT": "$penv{VCPKG_ROOT}"
+            }
+        },
+        {
+            "name": "_windows-base",
+            "hidden": true,
+            "inherits": "_vcpkg-base",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "_mingw-base",
+            "hidden": true,
+            "inherits": "_windows-base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "VCPKG_OVERLAY_PORTS": "${sourceDir}/cmake/vcpkg-overlay-ports"
+            }
+        },
+        {
+            "name": "vs2026-x64-shared",
+            "displayName": "Visual Studio 2026 — x64 (shared)",
+            "description": "Visual Studio 2026 generator using vcpkg dynamic triplet (x64-windows).",
+            "inherits": "_windows-base",
+            "generator": "Visual Studio 18 2026",
+            "architecture": "x64",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-windows",
+                "BUILD_SHARED_LIBS": "ON"
+            },
+            "environment": {
+                "PATH": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows/tools/glib;${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows/tools/gettext/bin;${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows/bin;$penv{PATH}",
+                "PKG_CONFIG_LIBDIR": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows/lib/pkgconfig;${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows/share/pkgconfig",
+                "PKG_CONFIG_PATH": ""
+            }
+        },
+        {
+            "name": "vs2026-x64-static",
+            "displayName": "Visual Studio 2026 — x64 (static)",
+            "description": "Visual Studio 2026 generator using vcpkg static triplet (x64-windows-static).",
+            "inherits": "_windows-base",
+            "generator": "Visual Studio 18 2026",
+            "architecture": "x64",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static",
+                "BUILD_SHARED_LIBS": "OFF"
+            },
+            "environment": {
+                "PATH": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows-static/tools/glib;${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows-static/tools/gettext/bin;${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows-static/bin;$penv{PATH}",
+                "PKG_CONFIG_LIBDIR": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows-static/lib/pkgconfig;${sourceDir}/build/${presetName}/vcpkg_installed/x64-windows-static/share/pkgconfig",
+                "PKG_CONFIG_PATH": ""
+            }
+        },
+        {
+            "name": "mingw-x64-shared",
+            "displayName": "MinGW-w64 — x64 (shared)",
+            "description": "Ninja + MinGW-w64 GCC using vcpkg dynamic triplet (x64-mingw-dynamic).",
+            "inherits": "_mingw-base",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-dynamic",
+                "VCPKG_HOST_TRIPLET": "x64-mingw-dynamic",
+                "BUILD_SHARED_LIBS": "ON"
+            },
+            "environment": {
+                "PATH": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-dynamic/tools/glib;${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-dynamic/tools/gettext/bin;${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-dynamic/bin;$penv{PATH}",
+                "PKG_CONFIG_LIBDIR": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-dynamic/lib/pkgconfig;${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-dynamic/share/pkgconfig",
+                "PKG_CONFIG_PATH": ""
+            }
+        },
+        {
+            "name": "mingw-x64-static",
+            "displayName": "MinGW-w64 — x64 (static)",
+            "description": "Ninja + MinGW-w64 GCC using vcpkg static triplet (x64-mingw-static).",
+            "inherits": "_mingw-base",
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-mingw-static",
+                "VCPKG_HOST_TRIPLET": "x64-mingw-static",
+                "BUILD_SHARED_LIBS": "OFF"
+            },
+            "environment": {
+                "PATH": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-static/tools/glib;${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-static/tools/gettext/bin;${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-static/bin;$penv{PATH}",
+                "PKG_CONFIG_LIBDIR": "${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-static/lib/pkgconfig;${sourceDir}/build/${presetName}/vcpkg_installed/x64-mingw-static/share/pkgconfig",
+                "PKG_CONFIG_PATH": ""
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "vs2026-x64-shared",
+            "configurePreset": "vs2026-x64-shared",
+            "configuration": "Release"
+        },
+        {
+            "name": "vs2026-x64-static",
+            "configurePreset": "vs2026-x64-static",
+            "configuration": "Release"
+        },
+        {
+            "name": "mingw-x64-shared",
+            "configurePreset": "mingw-x64-shared"
+        },
+        {
+            "name": "mingw-x64-static",
+            "configurePreset": "mingw-x64-static"
+        }
+    ]
+}

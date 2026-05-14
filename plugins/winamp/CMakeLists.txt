@@ -11,6 +11,7 @@ endif()
 # Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
+pchat_use_static_pkg_vars(GLIB)
 
 # Plugin source files
 set(PLUGIN_SOURCES
@@ -19,6 +20,7 @@ set(PLUGIN_SOURCES
 
 # Create shared library
 add_library(winamp MODULE ${PLUGIN_SOURCES})
+pchat_apply_static_compile_defs(winamp)
 
 # Set output name and properties
 set_target_properties(winamp PROPERTIES
@@ -34,10 +36,9 @@ target_include_directories(winamp PRIVATE
     ${GLIB_INCLUDE_DIRS}
 )
 
-# Link libraries
-target_link_libraries(winamp
-    ${GLIB_LIBRARIES}
-)
+# Link libraries: GLib symbols come from pchat.exe at runtime on Windows
+# static builds.
+pchat_link_plugin_runtime(winamp GLIB)
 
 # Compiler definitions
 target_compile_definitions(winamp PRIVATE

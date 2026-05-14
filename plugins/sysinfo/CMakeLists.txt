@@ -5,6 +5,7 @@ project(pchat-sysinfo C)
 # Find required packages
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
+pchat_use_static_pkg_vars(GLIB)
 
 # Plugin source files - common to all platforms
 set(PLUGIN_SOURCES
@@ -33,6 +34,7 @@ endif()
 
 # Create shared library
 add_library(sysinfo MODULE ${PLUGIN_SOURCES})
+pchat_apply_static_compile_defs(sysinfo)
 
 # Set output name and properties
 set_target_properties(sysinfo PROPERTIES
@@ -63,21 +65,20 @@ target_link_directories(sysinfo PRIVATE
     ${GLIB_LIBRARY_DIRS}
 )
 
-# Link libraries
-target_link_libraries(sysinfo
-    ${GLIB_LIBRARIES}
-)
+# Link libraries: GLib symbols come from pchat.exe at runtime on Windows
+# static builds.
+pchat_link_plugin_runtime(sysinfo GLIB)
 
 # Platform-specific dependencies and flags
 if(APPLE)
     # macOS specific frameworks
-    target_link_libraries(sysinfo
+    target_link_libraries(sysinfo PRIVATE
         "-framework Cocoa"
         "-framework IOKit"
     )
 elseif(WIN32)
     # Windows specific libraries for WMI
-    target_link_libraries(sysinfo
+    target_link_libraries(sysinfo PRIVATE
         wbemuuid
         ole32
         oleaut32
@@ -87,7 +88,7 @@ elseif(UNIX AND NOT APPLE)
     pkg_check_modules(LIBPCI libpci)
     if(LIBPCI_FOUND)
         target_include_directories(sysinfo PRIVATE ${LIBPCI_INCLUDE_DIRS})
-        target_link_libraries(sysinfo ${LIBPCI_LIBRARIES})
+        target_link_libraries(sysinfo PRIVATE ${LIBPCI_LIBRARIES})
         target_compile_definitions(sysinfo PRIVATE HAVE_LIBPCI)
     endif()
 endif()

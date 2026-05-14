@@ -8,6 +8,10 @@
 #include "audioplayer.h"
 #include "../../src/common/pchat-plugin.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Initialize and show the GUI window */
 void audioplayer_gui_init(pchat_plugin *ph, AudioPlayer *player);
 
@@ -16,5 +20,9 @@ void audioplayer_gui_update(void);
 
 /* Cleanup GUI resources */
 void audioplayer_gui_cleanup(void);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* AUDIOPLAYER_GUI_H */

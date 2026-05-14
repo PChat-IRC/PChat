@@ -61,7 +61,7 @@ target_include_directories(pchatcommon PRIVATE
 )
 
 target_link_libraries(pchatcommon PRIVATE
-    ${GLIB_LIBRARIES}
+    ${GLIB_LDFLAGS}
 )
 
 # Windows socket library
@@ -87,15 +87,30 @@ add_custom_command(
 # Generate marshal files
 find_program(GLIB_GENMARSHAL glib-genmarshal REQUIRED)
 
+# vcpkg ships glib-genmarshal as a bare Python script (no .exe / .bat wrapper),
+# so on Windows cmd.exe can't execute it directly. Detect this and route the
+# invocation through the Python interpreter.
+set(GLIB_GENMARSHAL_CMD "${GLIB_GENMARSHAL}")
+if(WIN32)
+    get_filename_component(_genmarshal_ext "${GLIB_GENMARSHAL}" EXT)
+    if(_genmarshal_ext STREQUAL "")
+        if(NOT PYTHON_EXECUTABLE)
+            find_package(Python3 COMPONENTS Interpreter REQUIRED)
+            set(PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+        endif()
+        set(GLIB_GENMARSHAL_CMD "${PYTHON_EXECUTABLE}" "${GLIB_GENMARSHAL}")
+    endif()
+endif()
+
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/marshal.h
-    COMMAND ${GLIB_GENMARSHAL} --prefix=_pchat_marshal --header ${CMAKE_CURRENT_SOURCE_DIR}/marshalers.list > ${CMAKE_CURRENT_BINARY_DIR}/marshal.h
+    COMMAND ${GLIB_GENMARSHAL_CMD} --prefix=_pchat_marshal --header ${CMAKE_CURRENT_SOURCE_DIR}/marshalers.list > ${CMAKE_CURRENT_BINARY_DIR}/marshal.h
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marshalers.list
 )
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/marshal.c
-    COMMAND ${GLIB_GENMARSHAL} --prefix=_pchat_marshal --body ${CMAKE_CURRENT_SOURCE_DIR}/marshalers.list > ${CMAKE_CURRENT_BINARY_DIR}/marshal.c
+    COMMAND ${GLIB_GENMARSHAL_CMD} --prefix=_pchat_marshal --body ${CMAKE_CURRENT_SOURCE_DIR}/marshalers.list > ${CMAKE_CURRENT_BINARY_DIR}/marshal.c
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/marshalers.list
 )
 

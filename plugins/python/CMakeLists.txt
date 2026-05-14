@@ -14,6 +14,7 @@ endif()
 message(STATUS "Found Python: ${Python3_VERSION} (${Python3_EXECUTABLE})")
 
 pkg_check_modules(GLIB REQUIRED glib-2.0)
+pchat_use_static_pkg_vars(GLIB)
 
 # Plugin source files
 set(PLUGIN_SOURCES
@@ -27,6 +28,7 @@ endif()
 
 # Create shared library
 add_library(python MODULE ${PLUGIN_SOURCES})
+pchat_apply_static_compile_defs(python)
 
 # Set output name and properties
 set_target_properties(python PROPERTIES
@@ -57,11 +59,12 @@ target_link_directories(python PRIVATE
     ${GLIB_LIBRARY_DIRS}
 )
 
-# Link libraries
-target_link_libraries(python
+# Link libraries. GLib symbols come from pchat.exe at runtime on Windows
+# static builds; Python is plugin-private.
+target_link_libraries(python PRIVATE
     ${Python3_LIBRARIES}
-    ${GLIB_LIBRARIES}
 )
+pchat_link_plugin_runtime(python GLIB)
 
 # Compiler definitions
 target_compile_definitions(python PRIVATE
@@ -94,10 +97,14 @@ install(TARGETS python
 )
 
 # Install Python support files
+# pchat.py / xchat.py / hexchat.py are thin shims that re-export the
+# real bindings from _pchat.py, so scripts written for PChat, classic
+# X-Chat, or HexChat all import successfully without modification.
 install(FILES
     pchat.py
     python.py
     xchat.py
+    hexchat.py
     _pchat.py
     DESTINATION ${PCHAT_LIBDIR}
 )

@@ -13,6 +13,10 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Forward declarations */
 typedef struct AudioPlayer AudioPlayer;
 typedef struct PlaylistItem PlaylistItem;
@@ -50,8 +54,8 @@ struct AudioPlayer {
     
     pthread_t playback_thread;
     pthread_mutex_t lock;
-    
-    void *ffmpeg_ctx;      /* FFmpeg context */
+
+    void *decoder_ctx;     /* Per-format AudioDecoder pointer */
     void *faudio_device;   /* FAudio device */
 };
 
@@ -86,5 +90,9 @@ void audioplayer_set_loop(AudioPlayer *player, bool loop);
 void audioplayer_set_shuffle(AudioPlayer *player, bool shuffle);
 void audioplayer_set_volume(AudioPlayer *player, float volume);
 float audioplayer_get_volume(AudioPlayer *player);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* PCHAT_AUDIOPLAYER_H */

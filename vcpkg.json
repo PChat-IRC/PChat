@@ -1,0 +1,77 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name": "pchat",
+    "version-string": "2.0.0",
+    "description": "PChat IRC client",
+    "homepage": "https://github.com/PChat-IRC/PChat",
+    "builtin-baseline": "522253caf47268c1724f486a035e927a42a90092",
+    "dependencies": [
+        "pkgconf",
+        {
+            "name": "glib",
+            "default-features": false
+        },
+        "gettext",
+        "iso-codes"
+    ],
+    "default-features": [
+        "gtk3",
+        "openssl",
+        "lua",
+        "audioplayer",
+        "update-checker"
+    ],
+    "features": {
+        "gtk3": {
+            "description": "Build the GTK3 frontend",
+            "dependencies": [
+                {
+                    "name": "gtk3",
+                    "default-features": false
+                },
+                {
+                    "name": "cairo",
+                    "default-features": false,
+                    "features": [ "fontconfig", "freetype" ]
+                }
+            ]
+        },
+        "openssl": {
+            "description": "Enable OpenSSL TLS backend",
+            "dependencies": [ "openssl" ]
+        },
+        "lua": {
+            "description": "Enable Lua scripting plugin",
+            "dependencies": [ "lua" ]
+        },
+        "audioplayer": {
+            "description": "Enable AudioPlayer plugin (mpg123 + libFLAC + libvorbis + alac-decoder + FAudio + wxWidgets GUI)",
+            "dependencies": [
+                "mpg123",
+                "libflac",
+                "libvorbis",
+                "alac-decoder",
+                "faudio",
+                {
+                    "name": "wxwidgets",
+                    "default-features": false
+                }
+            ]
+        },
+        "update-checker": {
+            "description": "Enable built-in update checker (libsoup + libxml2)",
+            "dependencies": [
+                "libsoup",
+                "libxml2"
+            ]
+        },
+        "libproxy": {
+            "description": "Enable libproxy support",
+            "dependencies": [ "libproxy" ]
+        },
+        "python": {
+            "description": "Build the Python scripting plugin (also exposes the legacy xchat / hexchat module names so backported scripts load unmodified). NOTE: requires the 'cffi' Python package at runtime; install with `pip install cffi`.",
+            "dependencies": [ "python3" ]
+        }
+    }
+}

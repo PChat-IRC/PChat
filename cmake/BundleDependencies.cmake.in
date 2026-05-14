@@ -208,9 +208,14 @@ if(GTK_PREFIX AND EXISTS "${GTK_PREFIX}")
              DESTINATION "${CMAKE_INSTALL_PREFIX}/lib")
         message(STATUS "Copied GDK pixbuf loaders")
         
-        # Update pixbuf loaders cache
+        # Update pixbuf loaders cache. vcpkg installs the tool under
+        # tools/gdk-pixbuf/, MSYS2 / system installs under bin/.
         find_program(GDK_PIXBUF_QUERY_LOADERS gdk-pixbuf-query-loaders
-            PATHS "${GTK_PREFIX}/bin"
+            PATHS
+                "${GTK_PREFIX}/tools/gdk-pixbuf"
+                "${GTK_PREFIX}/bin"
+                "$ENV{MSYSTEM_PREFIX}/bin"
+            NO_DEFAULT_PATH
         )
         if(GDK_PIXBUF_QUERY_LOADERS)
             execute_process(
@@ -218,6 +223,9 @@ if(GTK_PREFIX AND EXISTS "${GTK_PREFIX}")
                 OUTPUT_FILE "${CMAKE_INSTALL_PREFIX}/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache"
                 WORKING_DIRECTORY "${CMAKE_INSTALL_PREFIX}"
             )
+            message(STATUS "Generated gdk-pixbuf loaders.cache")
+        else()
+            message(WARNING "gdk-pixbuf-query-loaders not found - loaders.cache will not be generated")
         endif()
     endif()
 endif()
@@ -231,18 +239,32 @@ foreach(LOCALE ${GTK_LOCALES})
     endif()
 endforeach()
 
-# Compile GSettings schemas
+# Compile GSettings schemas. Without a valid gschemas.compiled, GTK will
+# abort the process the moment any widget that reads GSettings (e.g. the
+# GtkFileChooserDialog used by the plugin browser) is constructed.
 find_program(GLIB_COMPILE_SCHEMAS glib-compile-schemas
-    PATHS "${GTK_PREFIX}/bin" "$ENV{MSYSTEM_PREFIX}/bin"
+    PATHS
+        "${GTK_PREFIX}/tools/glib"
+        "${GTK_PREFIX}/bin"
+        "$ENV{MSYSTEM_PREFIX}/bin"
+    NO_DEFAULT_PATH
 )
 if(GLIB_COMPILE_SCHEMAS AND EXISTS "${CMAKE_INSTALL_PREFIX}/share/glib-2.0/schemas")
     execute_process(
         COMMAND "${GLIB_COMPILE_SCHEMAS}" "${CMAKE_INSTALL_PREFIX}/share/glib-2.0/schemas"
         RESULT_VARIABLE SCHEMA_RESULT
+        OUTPUT_VARIABLE SCHEMA_OUTPUT
+        ERROR_VARIABLE  SCHEMA_ERROR
     )
     if(SCHEMA_RESULT EQUAL 0)
-        message(STATUS "Compiled GSettings schemas")
+        message(STATUS "Compiled GSettings schemas (${CMAKE_INSTALL_PREFIX}/share/glib-2.0/schemas/gschemas.compiled)")
+    else()
+        message(WARNING "glib-compile-schemas failed (${SCHEMA_RESULT}): ${SCHEMA_ERROR}")
     endif()
+elseif(NOT GLIB_COMPILE_SCHEMAS)
+    message(WARNING "glib-compile-schemas not found - GTK will crash on first GSettings access")
+else()
+    message(WARNING "No schemas directory at ${CMAKE_INSTALL_PREFIX}/share/glib-2.0/schemas - GTK will crash on first GSettings access")
 endif()
 
 message(STATUS "Dependency bundling complete!")

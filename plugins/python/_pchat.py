@@ -6,6 +6,7 @@ from _pchat_embedded import ffi, lib
 
 __all__ = [
     'EAT_ALL', 'EAT_PCHAT', 'EAT_NONE', 'EAT_PLUGIN', 'EAT_XCHAT',
+    'EAT_HEXCHAT',
     'PRI_HIGH', 'PRI_HIGHEST', 'PRI_LOW', 'PRI_LOWEST', 'PRI_NORM',
     '__doc__', '__version__', 'command', 'del_pluginpref', 'emit_print',
     'find_context', 'get_context', 'get_info',
@@ -21,7 +22,9 @@ __license__ = 'GPL-2.0+'
 
 EAT_NONE = 0
 EAT_PCHAT = 1
+# Aliases so backported xchat / hexchat scripts keep working unchanged.
 EAT_XCHAT = EAT_PCHAT
+EAT_HEXCHAT = EAT_PCHAT
 EAT_PLUGIN = 2
 EAT_ALL = EAT_PCHAT | EAT_PLUGIN
 

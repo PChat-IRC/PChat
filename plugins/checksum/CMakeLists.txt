@@ -6,6 +6,7 @@ project(pchat-checksum C)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED glib-2.0)
 pkg_check_modules(GIO REQUIRED gio-2.0)
+pchat_use_static_pkg_vars(GLIB GIO)
 
 # Plugin source files
 set(PLUGIN_SOURCES
@@ -14,6 +15,7 @@ set(PLUGIN_SOURCES
 
 # Create shared library
 add_library(checksum MODULE ${PLUGIN_SOURCES})
+pchat_apply_static_compile_defs(checksum)
 
 # Set output name and properties
 set_target_properties(checksum PROPERTIES
@@ -44,11 +46,9 @@ target_link_directories(checksum PRIVATE
     ${GIO_LIBRARY_DIRS}
 )
 
-# Link libraries
-target_link_libraries(checksum
-    ${GLIB_LIBRARIES}
-    ${GIO_LIBRARIES}
-)
+# Link libraries: glib/gio symbols are resolved against pchat.exe on
+# Windows static builds (see pchat_link_plugin_runtime).
+pchat_link_plugin_runtime(checksum GLIB GIO)
 
 # Compiler flags
 target_compile_options(checksum PRIVATE
